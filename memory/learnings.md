@@ -1557,3 +1557,48 @@ moment it is writing the file. T088's shape: two documents disagreeing, only one
 **Apply to**: any budget/limit figure. Trust the enforced constant, never the prose describing it —
 and when prose and gate disagree, the prose is the bug. Fixing the three stale statements needs a
 task; the guard should scan every file stating a budget figure, not just the stub.
+
+## Guards that lock out the role meant to release them (consolidated 2026-08-24)
+
+> Moved verbatim from the `MEMORY.md` hot-tier index by `/compact-memory`. The index line
+> was 1120 chars against a 150-char target and this synthesis existed nowhere else —
+> the cold file held the individual incidents but not the tally or the rule. Nothing was
+> shortened in the move; only the pointer above it was.
+
+**step-limit family, 4 incidents.** `pre_agent_step_limit` killed the Supervisor's own `Bash` **and** `Read` via a stale shared `active_task` while its message told the Supervisor to run the reset; **`Write` was never gated**, so overwriting the counter with `0` released it — probe other tool families before escalating, and a kill-switch must exempt the role its remediation names. T044 disabled the only thing resetting counters and nothing replaced it, surfacing as 3 unrelated-looking lockouts, one from a task Done for hours: **when disabling a component, ask what it was the ONLY thing doing.** A sub-agent inherits its parent's `session_id`, so a session-keyed counter does not separate agent from Supervisor (T054's agent spent 42 legitimate calls and blocked the Supervisor too — 4th manual reset in one session; 40 was too low for a ~7-file C2). Lifetime score before T057: **4 Supervisor lockouts / 2 lost agent runs / 0 runaways caught** — weigh a safety mechanism against its measured record, not the hazard it was imagined to prevent
+
+## The vacuous-assertion family (consolidated 2026-08-24)
+
+> Moved verbatim from the `MEMORY.md` hot-tier index by `/compact-memory`. The index line
+> was 1193 chars against a 150-char target and this synthesis existed nowhere else —
+> the cold file held the individual incidents but not the tally or the rule. Nothing was
+> shortened in the move; only the pointer above it was.
+
+**7 instances; an assertion never observed failing is not evidence.** T039's checksum compared two empties (`^## ` could not match an H3) — mutate what a checksum guards and confirm RED. A mutation that never *executes* proves nothing either (a control sat after `sys.exit(main())`); confirm behaviour actually changed before trusting GREEN. An assertion can be non-vacuous against one mutation and vacuous against another — T067's line cap used `rstrip("\n")`, so non-blank padding went RED while blank padding left a 167-line file green: **attack the stated metric from more than one direction.** A Stage 4 *fix* ships untested unless someone writes one (T060's P2 fix asserted nothing). A negative-grep test is free-passing if its file list is wrong: assert every file **exists** and that content-excluded lines are **still present**, and exclude by content, never by allowing "one hit". Newest and subtlest: a test helper that **re-implements** the logic instead of calling it (T068's `row_is_filled`, with `getattr` fallbacks) — all 8 assertions tested a copy. **Tell: a helper reaching for a module's constants rather than its functions**
+
+## Evidence integrity: a checkmark is a claim, not a fact (consolidated 2026-08-24)
+
+> Moved verbatim from the `MEMORY.md` hot-tier index by `/compact-memory`. The index line
+> was 996 chars against a 150-char target and this synthesis existed nowhere else —
+> the cold file held the individual incidents but not the tally or the rule. Nothing was
+> shortened in the move; only the pointer above it was.
+
+**5 incidents.** T039 claimed "post-commit passed, exit 0"; at that commit it FAILED exit 1 (the run was pre-commit) — re-run it yourself, Hard-Stop Gate 5 depends on it. Not every implementer fills the table (T031 did, T032 didn't); the reviewer fills it with their own reproduced output. **Stale Evidence becomes false Evidence once the blocker clears** — an honest `verify | fail` written mid-blocker later recorded a state that no longer existed, and the merge gate scans that exact cell. A fixture can claim provenance it does not have: T061's docstring said "pinned to the real capture" while its keys were invented (`ephemeral_5m` vs `ephemeral_5m_input_tokens`) — tests passed because the implementation was written against the same wrong names, so keep the capture and diff against it. Post-`/compact` especially: `git worktree list` and independently re-verify claimed-passing Evidence against real file content
+
+## Worktree and isolation gotchas (consolidated 2026-08-24)
+
+> Moved verbatim from the `MEMORY.md` hot-tier index by `/compact-memory`. The index line
+> was 1091 chars against a 150-char target and this synthesis existed nowhere else —
+> the cold file held the individual incidents but not the tally or the rule. Nothing was
+> shortened in the move; only the pointer above it was.
+
+**`isolation:"worktree"` forks from `main`, not the current branch**, so a guide committed on a feature branch is invisible to its own agent (hit 4x on 2026-08-06). For branch work create the worktree yourself off HEAD and spawn **without** `isolation`; never combine `isolation` with a pre-made worktree (the Agent tool makes a second one and orphans yours — T032, reconfirmed for background spawns). Commit Stage 2 artifacts **before** any spawn: a worktree sees only committed state, and an untracked guide makes the agent correctly halt under Gate 1. Commit timing alone is not enough — T049's worktree still forked one commit behind, so pasting the guide's orienting content into the prompt is the real belt-and-suspenders. A worktree agent **structurally cannot** write the main-checkout state path (the sandbox redirects it to a copy the hooks never read — root of T056). Worktree-isolated files silently die if gitignored: check before gitignoring any spawn-produced artifact (T028; `reports/token-audit_*` is the tracked exception)
+
+## How the merge gate has failed to gate (consolidated 2026-08-24)
+
+> Moved verbatim from the `MEMORY.md` hot-tier index by `/compact-memory`. The index line
+> was 996 chars against a 150-char target and this synthesis existed nowhere else —
+> the cold file held the individual incidents but not the tally or the rule. Nothing was
+> shortened in the move; only the pointer above it was.
+
+**4 distinct ways, plus its input layer.** Its evidence check was a bare substring match (`trace_shows_verification` accepted any summary *containing* `pytest`/`verify`; on T043 only inspection commands qualified). **A guard is only as strong as the layer feeding it** — T044's matcher was correct while `extract_command`'s truncated-JSON fallback handed it the agent-authored `description` field, making `pytest` a command head. Patching a channel in a test does not prove the channel works: T044's suite patched `os.environ`, which never crosses the real harness→hook *process* boundary, so anything spanning processes needs one genuine end-to-end check. Operationally: the gate scans the **whole** `command` string before any of it runs, so a heredoc merely *documenting* a guarded operation trips it (write files with the Write tool), and "close the Kanban BEFORE merge" means **a separate tool call**, not earlier in the same command
