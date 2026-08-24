@@ -1509,3 +1509,23 @@ tracking, idempotence, the `update.sh` conflict path, 717 tests) — but the unr
 separately from what was *inferred*, and never let an unmeasured claim round up to a proven one.
 T085 shipped a link that looked live and was not; T082's verify found its real gap was documentation
 rather than behaviour. Both were caught by insisting on the distinction.
+
+## A guide row that says "check first" delegates a Supervisor decision to an implementer who cannot make it (2026-08-24, T090)
+
+T090's guide listed `site/` as *"one content line matching the README, only if the site already
+carries a provider claim — check first"*. The implementer checked, measured
+`grep -c "AGENTS" site/index.html` → **0**, and correctly left the file alone. It obeyed the guide
+exactly and the outcome was still wrong: `site/index.html` is the **designated full reference**
+(T083/T085), and `README.md` says directly below T090's own new line that the full reference *"lives
+on the project site"*. The branch therefore advertised multi-provider support and pointed at a
+reference silent on it — **T085's P1b recurring in the same file for the same reason**.
+
+The defect is in the conditional. "Check whether X already exists, and act only if it does" asks the
+implementer to infer *intent* from *current state*, but current state was exactly what the task was
+meant to change. An absent provider claim was evidence the site needed one, not evidence to skip.
+
+**Apply to**: never write a TASK_GUIDE row whose condition is the thing the task exists to change.
+Decide at Stage 2 and state it flatly ("add a Providers section"), or leave it out of scope entirely
+and register it. Note who caught this: **the user asked whether the README and page had been
+updated** — no gate fired, and both Stage 4 passes were green, because a reviewer scoped to the diff
+cannot see a document that should have been in the diff and wasn't.
