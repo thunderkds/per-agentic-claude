@@ -1602,3 +1602,62 @@ task; the guard should scan every file stating a budget figure, not just the stu
 > shortened in the move; only the pointer above it was.
 
 **4 distinct ways, plus its input layer.** Its evidence check was a bare substring match (`trace_shows_verification` accepted any summary *containing* `pytest`/`verify`; on T043 only inspection commands qualified). **A guard is only as strong as the layer feeding it** — T044's matcher was correct while `extract_command`'s truncated-JSON fallback handed it the agent-authored `description` field, making `pytest` a command head. Patching a channel in a test does not prove the channel works: T044's suite patched `os.environ`, which never crosses the real harness→hook *process* boundary, so anything spanning processes needs one genuine end-to-end check. Operationally: the gate scans the **whole** `command` string before any of it runs, so a heredoc merely *documenting* a guarded operation trips it (write files with the Write tool), and "close the Kanban BEFORE merge" means **a separate tool call**, not earlier in the same command
+
+
+## A green suite is not evidence when both tests look away (2026-08-24, T093)
+
+`test_kanban_section_parsing.py` *did* assert Todo→Todo — but only against `FIXTURE_KANBAN`, whose Done
+rows mention no other task ID, so the shadowing hazard was absent from the fixture. The one test reading
+the **live** board collected `- \[x\] \*\*(T\d+)\*\*` and asserted each resolved to `Done`: it
+iterated Done IDs only, so a shadowed Todo row was the exact case it could not see — and it stayed green
+*because* the bug's wrong answer was `Done`.
+
+**Why:** two tests can each cover the safe direction and jointly cover nothing. The first statement of
+this gap ("Todo is never asserted") was wrong and had to be corrected before the row was written;
+the accurate version is narrower and is what made the fix specifiable.
+
+**How to apply:** when a test iterates a set derived from the thing under test, ask what the bug would
+do to the iteration set. If the bug *removes* cases from the set, the test cannot fail.
+
+## Pin the real code, not a copy of it (2026-08-24, T093 Stage 4 P2)
+
+AC8 asked that the reasoning exempting the merge gate be "pinned rather than trusted". The delivered test
+called a hand-copy of the closure's logic living in the test file. Fixed by extracting the real
+`tasks_in_section` closure from source by AST and `exec`ing it — it lives inside `main()`, so that is the
+only route that avoids the hook's stdin protocol.
+
+**Why:** the control settles it. Breaking the real closure's first-match property (`re.search` →
+`re.findall(...)[-1]`) leaves the copy returning `['T001']` (blind) while the real-closure pin returns
+`['T002']` (catches). A copy-based pin is green at the moment production breaks.
+
+**How to apply:** a test whose subject is "production still has property P" must read production. AST
+extraction + `exec` reaches closures that are otherwise untestable without their transport protocol.
+
+## Verify a documentation change at the agent, and run the unwired control (2026-08-24, T092)
+
+Surface for a skill-instruction change is whoever reads the skill. Same trimming instruction in both
+trees: the wired assembler kept every element citing the new passage; the **unwired control dropped both
+the `memory/MEMORY.md` reference and the orienting content**, rationalising "realistically a resume/verify
+pass, not a cold start".
+
+**Why:** this is a genuine behavioural delta, and stronger than T082 obtained — that task's control
+refused unprompted, so its real gap was documentation, not behaviour. Here the skill's pre-existing
+element table, which already listed those elements as mandatory, did **not** hold under a plausible cost
+argument. The control's failure mode is a confident wrong inference, not laziness.
+
+**How to apply:** always run the unwired arm. Without it you cannot tell a rule that works from a rule
+that was never needed — and the answer differs task to task.
+
+## Closing a terminal window loses the completion marker (2026-08-24, Stage 3 spawn tracking)
+
+`ghostty -e bash -c "claude ...; touch marker; exec bash"` silently never writes the marker: closing the
+window sends **SIGHUP to the process group** and bash dies before reaching `touch`. Measured side by side
+under a group SIGHUP — naive form MISSING, `trap ... EXIT INT TERM HUP` form WRITTEN with `exit=129`.
+
+**Why:** it broke completion tracking for the parallel T092/T093 spawn while the work itself was fine.
+The `.exit` file is the substantive half: it separates "agent finished" (0) from "window closed mid-run"
+(129) from "agent errored".
+
+**How to apply:** trap-based marker plus an `.exit` file; the wait-loop must also exit on process death
+(SIGKILL runs no trap). Read the PID from a pidfile the launcher writes — **never `pgrep -f`**, which
+matched the Supervisor's own shell and killed its own Bash call twice while this was being fixed.

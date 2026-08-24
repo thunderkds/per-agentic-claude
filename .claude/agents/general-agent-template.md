@@ -57,6 +57,9 @@ are never traded away for a shorter diff. This ladder shortens code, not correct
 
 ## Staleness Guard
 
-Root `AGENTS.md` is a thin mirror of this file's Base Rules for non-Claude CLIs (Codex, etc.). If
-you edit Base Rules here, or the Karpathy Engineering Principles table that now lives in each of
-the four role guides, check `AGENTS.md` is still an accurate mirror and update it if not.
+`AGENTS.md` and `.cursor/rules/agent-base.mdc` are adapters for non-Claude CLIs that mirror
+`CLAUDE.md`'s non-negotiables (Karpathy principle names, Hard-Stop Gate titles, the
+untrusted-content rule, "no TASK_GUIDE = no work"), not this file's Base Rules. If you edit any of
+those non-negotiables in `CLAUDE.md`, both adapters need a matching update.
+`tests/test_provider_adapters.py` enforces this mechanically at test time — run it rather than
+auditing the adapters by eye.

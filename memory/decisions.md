@@ -1571,3 +1571,28 @@ retained, `learnings.md` 1,559 → 1,604 lines. 17 entries remain in the >400 ba
 `compact-memory/SKILL.md` itself). Adding a third distinct number to that, in the session where the
 disagreement had just turned `main` red, would deepen the defect. The ratchet comes down as part of
 the task that reconciles all five statements at once.
+
+
+## T092 + T093 merged: the cache finding reaches the assembler, and the board resolver stops being shadowed (2026-08-24)
+
+**T092** — DDR-0004's conclusion (spawn-prompt *size* is ~free because ~97% of injected context bills as
+a cache read; spawn *count* is the lever) lived in `post_tool_trace.py`, a DDR and two cold memory files,
+and had never reached `.claude/skills/craft-spawn-prompt/SKILL.md`, the one place that acts on it. Six
+lines added inside `#### 3. Assemble the prompt` — the step where the trimming temptation is felt.
+Deliberately *not* built, as cuts: no new step/section, no cost model, no token-budget field on the
+TASK_GUIDE template, no number quoted as a target (T071's `80/20` confinement and DDR-0001/DDR-0002/T063
+are three recorded instrument-validity failures), and no backfill into `bugfix` Step 4, which delegates
+here — duplicating it is how `CLAUDE_LEGACY.md` reached 629 hand-synced lines.
+
+**T093** — `find_kanban_section()` scanned `Done` first and matched a bare `**Txxx**` anywhere in a
+section body, so any Todo task bold-referenced from a Done row's prose resolved as `Done`. Fixed by
+anchoring to `^- \[[ x~]\] \*\*Txxx\*\*` so only a row's own ID counts. `### Closed` now resolves to
+`"Closed"` (AC6 decided it rather than leaving it incidental). `pre_bash_block_unsafe_merge.py` was
+investigated and found **not** vulnerable — it is line-scoped and takes the first bold ID per line — and
+was byte-identity-locked rather than "improved" in passing.
+
+**Decision worth keeping: the workaround was rejected in favour of the fix.** Both shadowed references
+had already been silenced by un-bolding them. That is a call-site workaround: the next completion note
+naming a follow-up in bold reintroduces the defect. The bold cross-references are now **deliberately
+restored and left bold** as a standing regression witness, with a test asserting the hazard remains on
+the live board so nobody can quietly re-neuter it.
