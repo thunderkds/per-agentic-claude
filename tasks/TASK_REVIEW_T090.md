@@ -117,3 +117,70 @@ auto-reads, instead of receiving none of them.
 all 5 mutation controls directly in this session; no `memory/event-trace/T090.jsonl` was consulted
 as a separate witness — the Supervisor should cross-check the trace file at Stage 4 per the standard
 independence rule.
+
+---
+
+### Amendment 2026-08-24 — ACs 12–14 (Providers section on the site)
+
+**BEFORE**, captured before any amendment commit exists:
+```
+$ grep -c "AGENTS" site/index.html
+0
+$ grep -n "Providers" site/index.html
+(no output — no Providers section)
+$ grep -n "multi-agent supervisor framework" site/index.html
+214:    A multi-agent supervisor framework for Claude Code. One Supervisor session enforces a 5-stage
+```
+`Repository layout` (`site/index.html`) listed `.claude/agents/`, `.claude/skills/`, `tasks/`,
+`templates/`, `packs/`, `memory/` — no `AGENTS.md`, no `.cursor/rules/agent-base.mdc`.
+`tests/test_site_content.py` had no assertion referencing adapters, Providers, `AGENTS.md`, or
+`.cursor`.
+
+**AFTER**:
+- AC12: `site/index.html` gained a `<section id="providers">` (nav entry added under "Reference"
+  alongside Packs/Repository layout/Memory system/Options) naming both adapters, what each is
+  auto-read by, what each carries, and what a non-Claude provider cannot enforce (hooks,
+  `Skill`/`Agent` tooling, `code-review`, `security-review`, `verify`, `ship`, `migration-safety`,
+  git-guardrails).
+- AC13: `Repository layout`'s table gained two rows: `AGENTS.md` and `.cursor/rules/agent-base.mdc`,
+  each pointing back at Providers.
+- Opening line corrected: "A multi-agent supervisor framework. On Claude Code, one Supervisor
+  session enforces a 5-stage pipeline … Other providers (Codex, Cursor) get the same doctrine
+  through a thin adapter — see Providers below for what carries over and what doesn't." No claim
+  that the 5-stage pipeline itself runs on a non-Claude provider.
+- AC14: `tests/test_site_content.py` gained two new tests —
+  `test_providers_section_lists_every_adapter_on_disk` (every adapter file present on disk must be
+  named in the Providers section) and `test_providers_section_names_no_dead_adapter_path` (every
+  adapter path named in the Providers section must still exist on disk). Both read the filesystem
+  (`AGENTS.md`, `.cursor/rules/*.mdc`) at test time — no hardcoded copy of either list.
+
+**Mutation controls (both directions), each: mutate → confirm landed via `git diff --stat` → run
+scoped test → paste RED → revert via `git mv`/`git checkout` and re-verify identical:**
+
+- **Rename** (`git mv AGENTS.md AGENTS_RENAMED.md`): `git diff --stat` confirmed
+  `AGENTS.md → AGENTS_RENAMED.md`. `pytest tests/test_site_content.py -q` → `1 failed, 16 passed`:
+  `test_providers_section_names_no_dead_adapter_path` → `AssertionError: Providers section names
+  adapter path(s) no longer on disk: ['AGENTS.md', 'AGENTS.md']`. Reverted with
+  `git mv AGENTS_RENAMED.md AGENTS.md`; `diff AGENTS.md /tmp/AGENTS.md.bak` confirmed byte-identical;
+  full file re-run green (17 passed).
+- **Removal** (`git rm .cursor/rules/agent-base.mdc`): `git diff --stat` confirmed the deletion.
+  `pytest tests/test_site_content.py -q` → `1 failed, 16 passed`:
+  `test_providers_section_names_no_dead_adapter_path` → `AssertionError: Providers section names
+  adapter path(s) no longer on disk: ['.cursor/rules/agent-base.mdc']`. Reverted with
+  `git reset -- .cursor/rules/agent-base.mdc && git checkout -- .cursor/rules/agent-base.mdc`;
+  `git status --porcelain` confirmed clean on that path; full file re-run green (17 passed).
+
+**Verification (post-amendment):**
+```
+$ python -m pytest tests/test_site_content.py -q
+.................                                                        [100%]
+17 passed in 0.05s
+$ python -m pytest tests/ .claude/hooks/tests/ -q
+719 passed in 10.19s
+$ git diff --exit-code main -- CLAUDE.md && echo "CLAUDE.md untouched: OK"
+CLAUDE.md untouched: OK
+```
+Baseline was 717 passing (post-original-T090); +2 new tests → 719, 0 regressions.
+
+**WITNESS (amendment)**: Common-Infrastructure-Agent (T090 amendment), 2026-08-24, same worktree
+and branch. Ran the verification command and both mutation controls directly in this session.
