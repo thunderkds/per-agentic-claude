@@ -333,22 +333,41 @@ def test_find_kanban_section_on_real_current_board():
         )
 
 
-def test_live_board_still_carries_a_bold_cross_reference(monkeypatch):
+def test_live_board_still_carries_a_cross_section_bold_reference():
     """T093 standing regression witness: the fix makes bold cross-references harmless, so
-    the board keeps them. If this ever fails, someone un-bolded them again — the T093
-    workaround — and the test above stopped exercising the real hazard."""
+    the board keeps them (the two un-boldings from `30ae3d6`/`e7945eb` were restored and
+    left restored). If this fails, someone un-bolded them again — T093's workaround
+    returning — and `test_find_kanban_section_on_real_current_board` above quietly stopped
+    exercising the hazard it exists for.
+
+    Deliberately stricter than "some row mentions two IDs", and stricter again than "any
+    two different sections": only one *direction* reproduces the defect. find_kanban_section
+    scans Done first, so the hazard is a row in an **earlier-scanned** section bold-
+    referencing a task that owns a row in a **later-scanned** one (Done -> Todo). The
+    reverse (T091's Todo row naming **T088** in Done) was always harmless — T088's own Done
+    row wins under the old code too — so accepting it would make this witness vacuous.
+    """
+    order = ("Done", "Ready for Review", "In Progress", "Todo", "Closed")
     kanban_path = os.path.join(ROOT, "PROJECT_KANBAN.md")
     with open(kanban_path) as f:
         lines = f.read().splitlines()
-    cross = [
-        line for line in lines
-        if re.match(r"^- \[[ x~]\] \*\*T\d+\*\*", line)
-        and len(set(re.findall(r"\*\*(T\d+)\*\*", line))) > 1
-    ]
-    assert cross, (
-        "no board row bold-references another task any more — if that was a deliberate "
-        "un-bolding, it is T093's workaround returning; the anchored resolver makes it "
-        "unnecessary"
+    owner_section = dict(_owning_rows_on_live_board())
+    hazards = []
+    for line in lines:
+        own = re.match(r"^- \[[ x~]\] \*\*(T\d+)\*\*", line)
+        if not own:
+            continue
+        here = owner_section.get(own.group(1))
+        for other in set(re.findall(r"\*\*(T\d+)\*\*", line)) - {own.group(1)}:
+            there = owner_section.get(other)
+            if here in order and there in order and order.index(here) < order.index(there):
+                hazards.append((own.group(1), here, other, there))
+    assert hazards, (
+        "no board row in an earlier-scanned section bold-references a task owning a row in "
+        "a later-scanned one (e.g. a Done row naming a Todo follow-up) — if that was a "
+        "deliberate un-bolding, it is T093's workaround returning; the anchored resolver "
+        "makes it unnecessary, and removing it blinds "
+        "test_find_kanban_section_on_real_current_board to the defect T093 fixed"
     )
 
 
