@@ -56,6 +56,12 @@
 - [T080 merged: the skill contract is discoverable from the README](decisions.md) — 8-line contract in `## Custom Skills`, pointer-not-copy; CLAUDE.md a documented no-op. `slim-skills` 150 vs spec 500 flagged, unreconciled.
 - [T082 merged: untrusted-content trust boundary](decisions.md) — rules live in `docs/claude-md/untrusted-content-boundary.md`; external-library review kept 1 of 29 domains; documented boundary + `resolve-pr-feedback` triage carve-out, **no detector** (cut, not deferred).
 
+- [T090 merged: provider adapters, split by mandate](decisions.md) — `CLAUDE.md` stays primary; `AGENTS.md` + `.cursor/rules/agent-base.mdc` inline the non-negotiables. Amends T051 → DDR-0006.
+- [The hot-tier budget is stated as 50,000 in 5 places, enforced at 45,000](learnings.md#the-hot-tier-budget-is-stated-as-50000-in-three-places-and-enforced-at-45000) — broke `main`; trust the constant, not the prose.
+- [setup.sh clones the remote, so unmerged work is unverifiable](learnings.md) — an install can run green and build a tree without your change; `SUPERVISOR_REPO=file://` is the fix.
+- [Blocked != broken in a verify verdict](learnings.md) — T090's provider surface was unreachable on auth; keep observed apart from inferred, never round up to PASS.
+- ["Check first" guide rows push a Stage 2 call downward](learnings.md) — T090's site row was obeyed exactly and still wrong. Never condition on what the task changes.
+- [compact-memory: move syntheses down, never shorten them](decisions.md) — the 5 largest index entries held tallies existing nowhere else; shortening in place would be data loss with a green test.
 - [T083 merged: landing site with test-enforced rosters](decisions.md) — plain HTML/CSS, no build; own board per Gate 4 but `Txxx` IDs kept so spawn-validation parses; rosters asserted against `.claude/` at test time.
 
 - [T084 merged: Vercel static deploy config](decisions.md) — `outputDirectory: site`, no build; `.vercelignore` allowlist; deploy stays operator-run.

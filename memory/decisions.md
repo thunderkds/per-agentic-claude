@@ -1540,3 +1540,34 @@ because a pointer is not a guarantee (event trace: 9 `Read` records / 66 buckets
 downstream `setup.sh` installs. Reverses T051's deliberate exclusion of the Karpathy table and gates
 from `AGENTS.md` → see DDR-0006. Out of scope and recorded as a cut, not a deferral:
 `pipeline-stages.md`'s 27 provider-coupled refs (C2 floor, own task).
+
+### compact-memory: move syntheses to the cold tier, never shorten them in place (2026-08-24)
+
+First `/compact-memory` pass to hit a hot tier that was **dense, not rotten**. All four stale
+heuristics returned nothing: 134 cited paths, 0 genuinely dead (39 apparent misses were basename
+citations resolving at fuller paths; the 5 survivors were correct as written). No duplicates, no
+unmarked supersessions — those are already annotated in place (T081→T085, T086→T089, T051→DDR-0006).
+
+**The finding that shaped the pass**: the 5 largest index entries (996–1,193 chars against a
+150-char target) carried *cross-incident syntheses* — "the vacuous-assertion family, 7 instances",
+"step-limit family, 4 incidents; lifetime 4 lockouts / 2 lost runs / 0 runaways caught". Checked
+before trimming: `learnings.md` held the individual dated incidents but **not the tally, the pattern
+name, or the rule**. The index was the only copy. Shortening those lines would have been data loss
+with a green test — the budget gate cannot tell a compacted index from a gutted one.
+
+**Rule for future passes**: when an index entry is long because it *synthesises*, move the body
+verbatim into the cold file under its own heading and reduce the index line to a pointer. Only
+shorten an entry in place when the cold file demonstrably already carries the substance — verify by
+grepping distinctive phrases, do not assume the tiers agree.
+
+Result: 44,861 → 40,399 chars (measured 39,903/45,000; headroom 139 → 5,097), 154 entries all
+retained, `learnings.md` 1,559 → 1,604 lines. 17 entries remain in the >400 band (~7,700 recoverable).
+
+**Ratchet deliberately not lowered**, reversing the plan stated before the consequences were checked:
+`test_memory_channel_and_budget.py:219` asserts every budget figure in the seeded stub equals
+`HOT_TIER_CHAR_BUDGET`, so lowering it goes RED until the stub is edited — and the stub is one of
+**five** places stating this number, four of which already disagree (45,000 enforced; 50,000 in
+`CLAUDE.md:194`, `docs/claude-md/memory-write-protocol.md`, the PostToolUse hook message, and
+`compact-memory/SKILL.md` itself). Adding a third distinct number to that, in the session where the
+disagreement had just turned `main` red, would deepen the defect. The ratchet comes down as part of
+the task that reconciles all five statements at once.
