@@ -1520,3 +1520,15 @@ the page, not an intention.
 **Deploy stays with the operator.** T084 produces `vercel.json` + a runbook; no agent authenticates
 to or pushes at Vercel. The security-relevant part of that config is scoping output to `site/` — a
 root-default deploy would publish `memory/` and `tasks/`.
+
+### T090 planned: provider adapters, split by mandate (2026-08-24)
+
+User asked for the kit to work with Codex/Cursor/others, **additively** — `CLAUDE.md` stays primary,
+other providers get an adapter that refers to it. Accepted with one amendment: T069's split-by-mandate,
+because a pointer is not a guarantee (event trace: 9 `Read` records / 66 buckets). Non-negotiables
+(4 principle names, 6 gate titles, untrusted-content rule, no-TASK_GUIDE-no-work) are **inlined** into
+`AGENTS.md` and a new `.cursor/rules/agent-base.mdc`; everything else stays behind a pointer to
+`docs/claude-md/`. Generator rejected — its drift protection stops at this repo's CI and never reaches
+downstream `setup.sh` installs. Reverses T051's deliberate exclusion of the Karpathy table and gates
+from `AGENTS.md` → see DDR-0006. Out of scope and recorded as a cut, not a deferral:
+`pipeline-stages.md`'s 27 provider-coupled refs (C2 floor, own task).
