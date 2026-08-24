@@ -20,6 +20,8 @@
 | verify | ☐ N/A | User-invoked only per `memory/MEMORY.md` ("verify skill is user-only") — not run by the implementing agent |
 | Review scope bounded to the change's blast radius (affected set, not whole repo) | ☑ pass | Touched only `.claude/agents/general-agent-template.md` (the `## Staleness Guard` section) and `tests/test_provider_adapters.py` (one new test + one new path constant), exactly the two files predicted in the guide's Files to Change table; no other file read for context beyond those named in the guide's Mandatory Startup |
 | Full smoke suite still green (no regression) | ☑ pass | `python3 -m pytest tests/ -q` → `........................................` `40 passed in 0.08s` (before this task: 39 tests; +1 new test = 40, none broken) |
+| Stage 4 review P2-1 fixed (directional word "below" pointed the wrong way) | ☑ pass | Guard's "not the Base Rules below" (Base Rules is at line 14, above the Staleness Guard at line 58, not below) rewritten to "not this file's Base Rules" — no directional word. |
+| Stage 4 review P2-2 fixed (negative assertion was a verbatim-string pin) | ☑ pass | Replaced `"this file's Base Rules" not in section` with a regex over the normalized section, `mirrors?(?:\s+of)?\s+(?:this file's\|this template's\|the)\s+Base Rules`, matching the *claim* (mirror-of-Base-Rules as source) regardless of determiner, while the corrected text's negated form ("not this file's Base Rules") does not match. Four probes run against the corrected guard, all confirmed:<br>• Probe 1 ("is a mirror of this file's Base Rules") → RED: `matched 'mirror of this file's Base Rules'`<br>• Probe 2 ("mirrors this template's Base Rules") → RED: `matched 'mirrors this template's Base Rules'`<br>• Probe 3 ("is a mirror of the Base Rules") → RED: `matched 'mirror of the Base Rules'`<br>• Probe 4 (corrected text restored) → GREEN: `11 passed in 0.01s`<br>Full suite re-run after restore: `python3 -m pytest tests/ -q` → `40 passed in 0.04s` |
 | **UI: Visual regression (diff or verdict pasted)** | ☑ N/A | Docs + test change only, no UI component |
 | **UI: Design-system compliance (tokens/colors/typography verified)** | ☑ N/A | Docs + test change only, no UI component |
 | **UI: Responsiveness at target viewports** | ☑ N/A | Docs + test change only, no UI component |
@@ -52,11 +54,15 @@ the four role guides, check `AGENTS.md` is still an accurate mirror and update i
 
 `AGENTS.md` and `.cursor/rules/agent-base.mdc` are adapters for non-Claude CLIs that mirror
 `CLAUDE.md`'s non-negotiables (Karpathy principle names, Hard-Stop Gate titles, the
-untrusted-content rule, "no TASK_GUIDE = no work"), not the Base Rules below. If you edit any of
+untrusted-content rule, "no TASK_GUIDE = no work"), not this file's Base Rules. If you edit any of
 those non-negotiables in `CLAUDE.md`, both adapters need a matching update.
 `tests/test_provider_adapters.py` enforces this mechanically at test time — run it rather than
 auditing the adapters by eye.
 ```
+
+(post-Stage-4-review correction, P2-1: "not the Base Rules below" pointed the wrong way — Base
+Rules is at line 14, above the Staleness Guard at line 58 — so the directional word was dropped
+and replaced with "this file's Base Rules")
 
 **DELTA**: A maintainer editing `CLAUDE.md`'s non-negotiables now gets pointed at the two files
 that actually need updating (`AGENTS.md` and `.cursor/rules/agent-base.mdc`) and the test that

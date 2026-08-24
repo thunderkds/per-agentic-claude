@@ -204,9 +204,15 @@ def test_staleness_guard_describes_the_real_adapter_contract():
     assert "CLAUDE.md" in section, (
         "Staleness Guard does not name CLAUDE.md as the source the adapters mirror"
     )
-    assert "this file's Base Rules" not in section, (
-        "Staleness Guard still claims the adapters mirror this file's Base Rules "
-        "(stale post-T090: they mirror CLAUDE.md's non-negotiables)"
+    normalized_section = _normalize(section)
+    stale_mirror_claim = re.search(
+        r"mirrors?(?:\s+of)?\s+(?:this file's|this template's|the)\s+Base Rules",
+        normalized_section,
+    )
+    assert not stale_mirror_claim, (
+        f"Staleness Guard still claims the adapters mirror the Base Rules as the source "
+        f"(stale post-T090: they mirror CLAUDE.md's non-negotiables) — matched "
+        f"'{stale_mirror_claim.group(0) if stale_mirror_claim else ''}'"
     )
     for adapter_path in ADAPTERS:
         assert adapter_path in section, (
