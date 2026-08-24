@@ -180,20 +180,20 @@ the next time anyone writes a completion note.
 
 ## Edge Case Checklist
 
-- [ ] A row's own ID is not always at a fixed offset — `- [ ] **T093** —` and `- [~] **T081** — *(SUPERSEDED…`
+- [x] A row's own ID is not always at a fixed offset — `- [ ] **T093** —` and `- [~] **T081** — *(SUPERSEDED…`
       differ. Anchor on the checkbox pattern, not a character count.
-- [ ] `### Closed` sits **after** `## Blocked`/`## Stage Tracker` in file order but is still a `###`
+- [x] `### Closed` sits **after** `## Blocked`/`## Stage Tracker` in file order but is still a `###`
       section; the existing `(?=^###|\Z)` lookahead stops at the next `###`, so verify the Closed body
       is captured as intended rather than assumed.
-- [ ] A section heading appearing inside a row's prose (an inline `### quote`) already has two tests
+- [x] A section heading appearing inside a row's prose (an inline `### quote`) already has two tests
       (`:91`, `:103`) — do not regress them; they exist because this parser has been broken this way
       before.
-- [ ] `T999`/unknown IDs must still return `None`, and a missing or empty board must still return
+- [x] `T999`/unknown IDs must still return `None`, and a missing or empty board must still return
       `None` (`:143`, `:148`).
-- [ ] The live-board test widened by AC4 will fail loudly the next time a row is misfiled. That is the
+- [x] The live-board test widened by AC4 will fail loudly the next time a row is misfiled. That is the
       point, but confirm the failure message names the task and both sections, or a future maintainer
       will read it as flaky.
-- [ ] Do not assume `- [x]` implies Done after this change — T081 is `- [~]` in Closed, and the
+- [x] Do not assume `- [x]` implies Done after this change — T081 is `- [~]` in Closed, and the
       existing test asserting "every `[x]` resolves to Done" must stay true.
 
 ---
@@ -238,14 +238,14 @@ the next time anyone writes a completion note.
 
 ## Completion Checklist
 
-- [ ] Implementation done
-- [ ] Self-review: `Skill({ skill: "code-review" })` run
-- [ ] Security review: `Skill({ skill: "security-review" })` run — **mandatory, Medium risk**. Scope it
+- [x] Implementation done
+- [x] Self-review: `Skill({ skill: "code-review" })` run
+- [x] Security review: `Skill({ skill: "security-review" })` run — **mandatory, Medium risk**. Scope it
       manually to `main..<branch>`; the built-in diffs the checked-out branch against `origin/HEAD` and
       has pulled in unrelated work **8 times** in this repo (T071 record)
-- [ ] Lint passes
-- [ ] Tests written AND pass — output pasted into `tasks/TASK_REVIEW_T093.md`'s Evidence table (Hard-Stop Gate 5)
+- [x] Lint passes
+- [x] Tests written AND pass — output pasted into `tasks/TASK_REVIEW_T093.md`'s Evidence table (Hard-Stop Gate 5)
 - [ ] UI/Design Evidence rows: **☐ N/A** — no UI component (UI/Design AC section deleted per Hard-Stop Gate 6)
 - [ ] `Skill({ skill: "verify" })` run by the **user** — the Supervisor cannot run it
 - [ ] `memory/MEMORY.md` updated by the Supervisor
-- [ ] Supervisor notified: task ready for Stage 4 review
+- [x] Supervisor notified: task ready for Stage 4 review
