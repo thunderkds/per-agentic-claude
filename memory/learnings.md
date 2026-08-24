@@ -1661,3 +1661,44 @@ The `.exit` file is the substantive half: it separates "agent finished" (0) from
 **How to apply:** trap-based marker plus an `.exit` file; the wait-loop must also exit on process death
 (SIGKILL runs no trap). Read the PID from a pidfile the launcher writes — **never `pgrep -f`**, which
 matched the Supervisor's own shell and killed its own Bash call twice while this was being fixed.
+
+---
+
+### 2026-08-24 — A doc pointer that names a check still does not get the check run
+
+T091's Staleness Guard ends with "`tests/test_provider_adapters.py` enforces this mechanically at
+test time — run it rather than auditing the adapters by eye." Stage 5 verify drove it at the agent:
+a sub-agent given the wired template, asked how it would check its work after renaming a Hard-Stop
+Gate, proposed a hand-rolled `grep` and **never named the test file** — the same answer the unwired
+control gave. The half of the guard that changed behaviour was the half that named a *path the agent
+did not know existed* (`.cursor/rules/agent-base.mdc`); the half that recommended an *action* did not
+land at n=1.
+
+**Why:** this is T069's "a pointer is not a guarantee" one level in. T069 measured that a pointer to
+a *file* often isn't followed. This is narrower and worse: the instruction was in the text the agent
+had already read, and still lost to the agent's default reflex (grep the repo). Naming a fact an
+agent can't derive changes what it does; naming a procedure it already has a habit for mostly does not.
+
+**How to apply:** when a doc's job is to make someone *run* something, assume the prose won't do it —
+wire the check into a channel that fires on its own (hook, test, CI), and treat the sentence as a
+label for the mechanism, not the mechanism. When writing an AC for doc text, do not write "the agent
+will run X"; write what the text must *say*, and verify the behaviour separately with an unwired
+control so you find out which half landed.
+
+---
+
+### 2026-08-24 — The default search tool skips dot-directories, so `.cursor/` is invisible to it
+
+During T091's verify, the unwired control agent ran a repo-wide search for a Hard-Stop Gate sentence
+and reported "these are the only two hits" — `CLAUDE.md` and `AGENTS.md`. A shell `grep -rn` over the
+same repo returns **three**, the third being `.cursor/rules/agent-base.mdc:31`. The agent's search
+never entered the dot-directory, and it stated its incomplete result as a complete one.
+
+**Why:** the Cursor adapter is a required delivery channel per DDR-0006 but lives behind a leading
+dot. Any "I grepped, that's all of them" conclusion about the kit's doctrine is wrong by exactly that
+file — the one an agent is least likely to already know about.
+
+**How to apply:** for anything that must cover all three provider channels, either shell out to
+`grep -rn` (which does traverse dot-directories) or name `.cursor/rules/agent-base.mdc` explicitly.
+Do not accept a search-tool sweep as proof of adapter coverage. The conformance test does this
+correctly — it iterates the `ADAPTERS` mapping rather than searching.

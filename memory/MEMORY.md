@@ -72,10 +72,13 @@
 
 - [T092 merged: the cache finding reaches the spawn assembler](decisions.md) — DDR-0004's "size is ~free, count is the lever" lived in a hook, a DDR and two cold files, never in `craft-spawn-prompt`. Six lines, six cuts.
 - [T093 merged: bold cross-refs no longer shadow the board resolver](decisions.md) — anchored to a row's own ID; the un-bolding workaround was rejected and the hazard deliberately left on the board as a witness.
+- [T091 merged: the Staleness Guard describes the channel it guards](decisions.md) — names `CLAUDE.md` + both adapters + the conformance test; capped at 8 lines by test so it can't become a second sync policy. Amends the T051 entry.
 - [A green suite is not evidence when both tests look away](learnings.md) — one asserted the safe direction on a fixture missing the hazard; the other iterated only Done IDs, so the bug removed its own case from the set.
 - [Pin the real code, not a copy of it](learnings.md) — AST-extract the closure; the copy returns `['T001']` and stays green at the moment production breaks.
 - [Verify a doc change at the agent, and run the unwired control](learnings.md) — wired kept every element; the control dropped the memory path and orienting content. Stronger delta than T082 got.
 - [Closing a terminal window loses the completion marker](learnings.md) — SIGHUP kills bash before `touch`; trap + `.exit` + pidfile, and never `pgrep -f` (it matched the Supervisor's own shell).
+- [A doc pointer that names a check still doesn't get the check run](learnings.md) — the wired agent read "run the test" and hand-grepped anyway; naming an unknown *path* changed behaviour, naming an *action* did not.
+- [The default search tool skips dot-directories](learnings.md) — `.cursor/rules/agent-base.mdc` is invisible to it; "I grepped, that's all of them" is wrong by exactly that file. Shell `grep -rn`, or name the path.
 
 ### Patterns & Gotchas
 - [v1-site release: evidence lessons](learnings.md) — mutation control stays green → first hypothesis is "my mutation didn't land", not "vacuous test"; verify a documented *behaviour* by running it; for "doc D matches source S" the mandatory control changes **S**.

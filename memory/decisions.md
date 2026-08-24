@@ -606,6 +606,12 @@ first-class rather than a one-off accommodation. → tracked as T051.
 > T051's *authority* rule intact — adapters gained content, not authority — and adds a conformance
 > test so the mirror cannot drift silently, which is what T051 had no mechanism for.
 
+> **AMENDED 2026-08-24 by T091.** The Staleness Guard footer this entry created went stale the
+> moment T090 landed: it named `AGENTS.md` as a mirror of *the template's own Base Rules* and knew
+> nothing of `.cursor/rules/agent-base.mdc`. T091 rewrote it to name `CLAUDE.md` as the mirrored
+> source, both adapters, and `tests/test_provider_adapters.py` as the enforcement — see the T091
+> entry at the end of this file.
+
 **T051 merged (2026-08-04)**: `AGENTS.md` (12 lines, 4 base-rule bullets + explicit canonical
 pointer), `MANIFEST` gained the line, `general-agent-template.md` gained a Staleness Guard footer,
 `docs/MULTI_AGENT.md`'s section renamed "Optional" → "Shared". Stage 4: code-review 0 findings
@@ -1596,3 +1602,36 @@ had already been silenced by un-bolding them. That is a call-site workaround: th
 naming a follow-up in bold reintroduces the defect. The bold cross-references are now **deliberately
 restored and left bold** as a standing regression witness, with a test asserting the hazard remains on
 the live board so nobody can quietly re-neuter it.
+
+---
+
+## T091 merged (2026-08-24) — the Staleness Guard now describes the channel it guards
+
+**Context**: T090 split the kit's doctrine into a primary (`CLAUDE.md`) plus two adapters
+(`AGENTS.md`, `.cursor/rules/agent-base.mdc`) per DDR-0006. The Staleness Guard in
+`.claude/agents/general-agent-template.md` — created by T051 — still described the pre-T090 world:
+`AGENTS.md` as a mirror of *this file's* Base Rules, no mention of the Cursor adapter. Both halves
+wrong, and an edit to `CLAUDE.md` (the channel that actually feeds the adapters) triggered no guard
+at all. Deliberately not fixed inside T090: `.claude/agents/` was on that guide's Files-Must-NOT-Touch
+list, and the Supervisor declined to breach a declared scope lock for a P2.
+
+**Decision**: the guard names `CLAUDE.md` as the mirrored source, lists both adapters, and points at
+`tests/test_provider_adapters.py` as the real enforcement — 6 non-blank lines, capped at 8 by test.
+It was explicitly *not* re-expanded into a sync policy; `CLAUDE_LEGACY.md` at 629 hand-synced lines
+is what that becomes. `test_staleness_guard_describes_the_real_adapter_contract()` pins all four
+claims and derives the adapter paths from the live `ADAPTERS` mapping, so adding a third adapter
+turns the guard red rather than leaving it quietly incomplete.
+
+**Severity stayed P2 on purpose, and the reasoning is the point**: since T090 the conformance test
+enforces the `CLAUDE.md`↔adapter sync mechanically, so the guard is belt-and-braces, not the
+load-bearing mechanism it was under T051. That is why it was safe to leave for a follow-up task.
+
+**Stage 4 found the defect class recurring inside its own fix.** The corrected guard read "not the
+Base Rules below" — Base Rules sits at line 14, the guard at line 58. A pointer misdirecting a
+maintainer, which is exactly what T091 exists to fix, reintroduced by the fix. It arose from the
+second P2: the negative assertion was a verbatim-string pin (`"this file's Base Rules" not in
+section`), which went red against a correct fix and forced a reword. Replaced with a
+determiner-agnostic regex, proven non-vacuous by three stale phrasings going red.
+
+Pushed as `fix/t091-staleness-guard` (not merged to `main`) at the user's request; the board row is
+closed. Suite 39 -> 40.
