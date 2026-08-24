@@ -18,6 +18,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CLAUDE_MD = os.path.join(ROOT, "CLAUDE.md")
 AGENTS_MD = os.path.join(ROOT, "AGENTS.md")
 CURSOR_MDC = os.path.join(ROOT, ".cursor", "rules", "agent-base.mdc")
+TEMPLATE_MD = os.path.join(ROOT, ".claude", "agents", "general-agent-template.md")
 MULTI_AGENT_DOC = "docs/claude-md/"
 
 ADAPTERS = {"AGENTS.md": AGENTS_MD, ".cursor/rules/agent-base.mdc": CURSOR_MDC}
@@ -188,3 +189,36 @@ def test_manifest_deploys_cursor_rules_and_keeps_agents_md():
     ]
     assert ".cursor/rules" in lines, "MANIFEST does not deploy .cursor/rules downstream"
     assert "AGENTS.md" in lines, "MANIFEST's existing AGENTS.md line was removed"
+
+
+def _staleness_guard_section():
+    text = _read(TEMPLATE_MD)
+    match = re.search(r"## Staleness Guard\n(.*?)(?=\n## |\Z)", text, re.DOTALL)
+    assert match, "could not locate the '## Staleness Guard' section in general-agent-template.md"
+    return match.group(1)
+
+
+def test_staleness_guard_describes_the_real_adapter_contract():
+    section = _staleness_guard_section()
+
+    assert "CLAUDE.md" in section, (
+        "Staleness Guard does not name CLAUDE.md as the source the adapters mirror"
+    )
+    assert "this file's Base Rules" not in section, (
+        "Staleness Guard still claims the adapters mirror this file's Base Rules "
+        "(stale post-T090: they mirror CLAUDE.md's non-negotiables)"
+    )
+    for adapter_path in ADAPTERS:
+        assert adapter_path in section, (
+            f"Staleness Guard does not name the adapter path '{adapter_path}'"
+        )
+    assert "test_provider_adapters.py" in section, (
+        "Staleness Guard does not point maintainers at tests/test_provider_adapters.py "
+        "as the mechanism that actually enforces the sync"
+    )
+
+    body_lines = [line for line in section.splitlines() if line.strip()]
+    assert len(body_lines) <= 8, (
+        f"Staleness Guard body is {len(body_lines)} non-blank lines, expected <= 8 "
+        "(it must stay a pointer, not become a second sync policy)"
+    )
