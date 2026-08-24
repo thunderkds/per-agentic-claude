@@ -33,20 +33,42 @@ except Exception:  # pragma: no cover - fail open, never block a spawn
 
 
 def find_kanban_section(task_ref):
-    """Return which board section (Todo/In Progress/Ready for Review/Done)
-    contains task_ref, or None if it isn't found anywhere on the board."""
+    """Return which board section (Todo/In Progress/Ready for Review/Done/Closed)
+    contains task_ref, or None if it isn't found anywhere on the board.
+
+    The match is anchored to the start of a list-item line — `- [ ] **Txxx**`,
+    `- [x] **Txxx**` or `- [~] **Txxx**` — so only the row that *is* the task can
+    determine its section (T093). Board rows routinely bold-reference *other*
+    tasks in their prose (completion notes name their follow-ups, superseded rows
+    name their successor); an unanchored `"**Txxx**" in body` test let any such
+    mention from an earlier-scanned section win, and Done is scanned first.
+    """
     try:
         with open(KANBAN) as f:
             kanban = f.read()
     except FileNotFoundError:
         return None
 
-    for section in ("Done", "Ready for Review", "In Progress", "Todo"):
+    for section in ("Done", "Ready for Review", "In Progress", "Todo", "Closed"):
+        # The heading may carry a trailing qualifier ("### Closed (investigated,
+        # will not do)"), so `[^\n]*` absorbs it. That makes the *heading* side
+        # line-anchored too (`^###`): without it, a row quoting `` `### Closed` ``
+        # inline — the live T093 row does — would be picked up as the heading and
+        # the section body read from that row's own prose. The terminating
+        # lookahead stops at the next H2 *or* H3 (`^##` matches both), so Closed's
+        # body ends at `## Blocked` instead of running to end-of-file. T045's
+        # line-anchoring is preserved on both sides.
         m = re.search(
-            rf"### {re.escape(section)}\n(.*?)(?=^###|\Z)", kanban,
+            rf"^### {re.escape(section)}[^\n]*\n(.*?)(?=^##|\Z)", kanban,
             re.DOTALL | re.MULTILINE,
         )
-        if m and f"**{task_ref}**" in m.group(1):
+        if not m:
+            continue
+        row = re.search(
+            rf"^- \[[ x~]\] \*\*{re.escape(task_ref)}\*\*", m.group(1),
+            re.MULTILINE,
+        )
+        if row:
             return section
     return None
 
