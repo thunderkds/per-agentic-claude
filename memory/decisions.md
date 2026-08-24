@@ -598,6 +598,14 @@ harmless for projects that never touch Codex, closes the same gap for anyone els
 framework with Codex, consistent with `docs/MULTI_AGENT.md` already treating multi-CLI as
 first-class rather than a one-off accommodation. → tracked as T051.
 
+> **AMENDED 2026-08-24 by T090 → see DDR-0006.** The "deliberately no Karpathy Principles table
+> or Hard-Stop Gates" decision below was reversed. It was correct on its own reasoning (avoid a
+> second source of truth) but had an unmeasured consequence: a Codex-only user received **none**
+> of the kit's non-negotiables through any guaranteed channel. T069 later measured that a pointer
+> is not a guarantee (9 `Read` records / 66 buckets), which is what changed the inputs. T090 keeps
+> T051's *authority* rule intact — adapters gained content, not authority — and adds a conformance
+> test so the mirror cannot drift silently, which is what T051 had no mechanism for.
+
 **T051 merged (2026-08-04)**: `AGENTS.md` (12 lines, 4 base-rule bullets + explicit canonical
 pointer), `MANIFEST` gained the line, `general-agent-template.md` gained a Staleness Guard footer,
 `docs/MULTI_AGENT.md`'s section renamed "Optional" → "Shared". Stage 4: code-review 0 findings
