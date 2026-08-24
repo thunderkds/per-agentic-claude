@@ -40,6 +40,14 @@ ROOT = Path(__file__).resolve().parents[3]
 # baseline count freezes the world.)
 BASELINE_REF = "8fc4dd2"
 
+# REPOINTED by T090 (`8fc4dd2` -> `360fc36`) for MANIFEST only: T090 adds a `.cursor/rules` line so
+# the new Cursor adapter (`.cursor/rules/agent-base.mdc`) deploys downstream, per DDR-0006. This is
+# a legitimate, required change (AC10 in TASK_GUIDE_T090.md), not drift — `8fc4dd2` is now
+# MANIFEST's own unfixed state and comparing against it is red by construction. `360fc36` is T090's
+# MANIFEST edit commit. `BASELINE_REF` itself is left unchanged for CLAUDE.md's other AC5/AC7/AC9
+# uses below, which T090 does not touch.
+MANIFEST_BASELINE_REF = "360fc36"
+
 # T069's own pre-implementation tip (the Stage 2 guide commit + the BEFORE capture), not T066's.
 # Same reasoning as above: a baseline *ref* dates the comparison; a baseline *count* freezes it.
 T069_BASELINE_REF = "8d6d56b"
@@ -220,7 +228,7 @@ def test_ac4_no_guide_tells_an_agent_to_re_read_its_own_system_prompt():
 # --------------------------------------------------------------------------
 @pytest.mark.parametrize(
     "rel,ref",
-    [("CLAUDE.md", T070_BASELINE_REF), ("MANIFEST", BASELINE_REF)],
+    [("CLAUDE.md", T070_BASELINE_REF), ("MANIFEST", MANIFEST_BASELINE_REF)],
 )
 def test_ac5_ac10_out_of_scope_files_are_byte_identical_to_the_baseline(rel, ref):
     assert (ROOT / rel).read_bytes() == read_at(rel, ref), (
