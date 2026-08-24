@@ -1529,3 +1529,31 @@ Decide at Stage 2 and state it flatly ("add a Providers section"), or leave it o
 and register it. Note who caught this: **the user asked whether the README and page had been
 updated** — no gate fired, and both Stage 4 passes were green, because a reviewer scoped to the diff
 cannot see a document that should have been in the diff and wasn't.
+
+## The hot-tier budget is stated as 50,000 in three places and enforced at 45,000 (2026-08-24, T090)
+
+The Supervisor turned `main` red with 5 failures by writing `memory/MEMORY.md` to 45,156 chars. The
+figure came from the PostToolUse hook's own instruction text ("keep hot tier ≤50,000 characters")
+and `CLAUDE.md:194` ("≤50,000 characters — a ratchet"). Both are **stale**: T075 lowered
+`HOT_TIER_CHAR_BUDGET` to **45,000**, and `MEMORY.md`'s own header says 45,000.
+`docs/claude-md/memory-write-protocol.md:6,19` says 50,000 too.
+
+T075 already hit this exact defect — it shipped with the ratchet lowered in one place and left at
+50,000 in another — and fixed it with an "every budget figure agrees with `HOT_TIER_CHAR_BUDGET`"
+assertion. But that guard scans **only the seeded stub** (`test_memory_channel_and_budget.py:219`).
+The same wrong number survived in three files it does not look at, including the one auto-injected
+into every session and the hook message that hands the Supervisor the wrong figure at the exact
+moment it is writing the file. T088's shape: two documents disagreeing, only one ever read.
+
+**Two things the recovery taught, both non-obvious:**
+1. Trimming wording to squeeze under the ratchet reached 3 chars of headroom and turned the budget
+   test green — while breaking `test_ac11`, which **appends to the live file** to prove short lines
+   stay green and therefore needs real room. Passing by 3 chars is arriving at the same cliff from
+   below, not passing. The correct recovery was removing index entries (substance kept in the cold
+   files), not shaving characters.
+2. The branch was green when measured and red after the **final** memory commit, because the suite
+   was run before that last write. **Re-run the suite after the last commit, not before it.**
+
+**Apply to**: any budget/limit figure. Trust the enforced constant, never the prose describing it —
+and when prose and gate disagree, the prose is the bug. Fixing the three stale statements needs a
+task; the guard should scan every file stating a budget figure, not just the stub.
