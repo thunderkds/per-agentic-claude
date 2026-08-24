@@ -47,6 +47,17 @@ and, after grilling:
 - Any generator script. DDR-0006 rejected generated adapters; do not build one.
 - Making hooks or skills run on non-Claude providers. Impossible here and not attempted.
 
+> **AMENDED 2026-08-24, after Stage 4, before merge.** The original guide listed `site/` as
+> *"only if the site already carries a provider claim — check first"*. The implementer checked,
+> correctly found none (`grep -c "AGENTS" site/index.html` → **0**), and left it alone. The guide
+> was wrong, not the implementer: the site is the **designated full reference** (T083/T085), and
+> `README.md` states directly below T090's own new line that the full reference *"lives on the
+> project site"*. So the branch as it stands advertises multi-provider support and points at a
+> reference silent on it — **T085's P1b defect recurring in the same place**. ACs 12–14 close it.
+> Note the gap is older and wider than T090: the site has never mentioned `AGENTS.md` at all
+> (since T051), and its opening line still reads *"A multi-agent supervisor framework for Claude
+> Code"*. Fixing that line is **in** scope; rewriting the site's other sections is **not**.
+
 **Requirement Refs**: None — this repo has no `PRD.md`. The requirement is the user request above,
 converged through `grill-with-docs mode=requirement` and `brainstorming` on 2026-08-24, and recorded in
 `docs/ddr/0006-provider-adapters-inline-non-negotiables.md`.
@@ -83,6 +94,9 @@ converged through `grill-with-docs mode=requirement` and `brainstorming` on 2026
 | 9 | **Negative**: the conformance test goes RED when any single non-negotiable is mutated in any one adapter — proven by a mutation control, output pasted | this repo has 9 recorded vacuous-assertion incidents |
 | 10 | `MANIFEST` deploys `.cursor/rules` downstream, and `AGENTS.md`'s existing line is unchanged | adapters must reach installed projects, not just this repo |
 | 11 | Each adapter stays thin: ≤ 60 lines. Principle **names** and gate **titles** only — not their prose | the 50% cut agreed with the user |
+| 12 | `site/index.html` carries a **Providers** section naming both adapters, what each provider auto-reads, and what a non-Claude provider cannot enforce | the README now claims multi-provider support and points at the site as the full reference; today that claim dead-ends |
+| 13 | The site's **Repository layout** section lists `AGENTS.md` and `.cursor/rules/agent-base.mdc` | the layout section is factually incomplete without them |
+| 14 | **Negative**: a test asserts the site's Providers section stays in sync with the adapter files that actually exist on disk, and goes RED when an adapter is renamed or removed | Hard-Stop Gate 5; `site/index.html` is hand-written HTML with no other guard |
 
 ---
 
@@ -182,7 +196,8 @@ Permanent Rule goes into every guaranteed channel; advisory content stays behind
 | `docs/MULTI_AGENT.md` | Cursor section points at the real `.mdc`; correct the now-stale "not required / thin mirror" framing; keep the "what does NOT port" section authoritative |
 | `tests/test_provider_adapters.py` | New. Conformance test per SC1–SC7 |
 | `README.md` | One line: the multi-provider claim is now true and points at the adapters |
-| `site/` | One content line matching the README, only if the site already carries a provider claim — check first |
+| `site/index.html` | **(amended)** Add a `Providers` section (adapters, what each provider auto-reads, what it cannot enforce); add both adapters to `Repository layout`; correct the opening "for Claude Code" line. Do not restyle or restructure anything else |
+| `tests/test_site_content.py` | **(amended)** Add the AC14 sync assertion. Imitate this file's existing pattern: assert the page against the live filesystem, never a hardcoded copy |
 
 ## Files Must NOT Touch
 
