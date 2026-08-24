@@ -76,7 +76,12 @@ def _numeric_literals(text):
 
 def test_ac1_states_measured_conclusion():
     passage = _added_passage(_skill_step_3())
-    lowered = passage.lower()
+    # Collapse newlines before matching: `.` does not cross a line break, so a
+    # bounded window like `count.{0,40}cost` silently dies the moment the passage
+    # wraps — the exact defect recorded as T085's Stage 4 P1. Without this the
+    # regex below is dead code and the assertion passes only via the string
+    # fallback, which is a weaker check than it looks.
+    lowered = re.sub(r"\s+", " ", passage.lower())
     assert "cache" in lowered
     assert "count" in lowered
     assert "spawn" in lowered
