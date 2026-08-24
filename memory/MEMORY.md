@@ -56,10 +56,6 @@
 - [T080 merged: the skill contract is discoverable from the README](decisions.md) — 8-line contract in `## Custom Skills`, pointer-not-copy; CLAUDE.md a documented no-op. `slim-skills` 150 vs spec 500 flagged, unreconciled.
 - [T082 merged: untrusted-content trust boundary](decisions.md) — rules live in `docs/claude-md/untrusted-content-boundary.md`; external-library review kept 1 of 29 domains; documented boundary + `resolve-pr-feedback` triage carve-out, **no detector** (cut, not deferred).
 
-- [T090 pushed: provider adapters, split by mandate](decisions.md) — `CLAUDE.md` stays primary; `AGENTS.md` + new `.cursor/rules/agent-base.mdc` inline the non-negotiables, depth stays behind a pointer. Amends T051 → DDR-0006.
-- [setup.sh clones the remote — unmerged changes are unverifiable by default](learnings.md) — install ran green against `main` and produced a T090-free tree; `SUPERVISOR_REPO=file://` is the escape hatch.
-- ["Check first" guide rows delegate a Stage 2 decision downward](learnings.md) — T090's site row; the implementer obeyed it exactly and the outcome was still wrong. Never condition on the state the task changes.
-- [Blocked != broken in a verify verdict](learnings.md) — T090's provider surface was unreachable on auth; observed vs inferred kept separate rather than rounded up to PASS.
 - [T083 merged: landing site with test-enforced rosters](decisions.md) — plain HTML/CSS, no build; own board per Gate 4 but `Txxx` IDs kept so spawn-validation parses; rosters asserted against `.claude/` at test time.
 
 - [T084 merged: Vercel static deploy config](decisions.md) — `outputDirectory: site`, no build; `.vercelignore` allowlist; deploy stays operator-run.
