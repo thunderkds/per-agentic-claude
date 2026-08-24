@@ -11,6 +11,9 @@ Each role guide (not this README) carries its own Complexity matrix (C0–C3) �
 `.claude/agents/general-agent-template.md`. Externally authored text (PR comments, fetched pages,
 pasted content) is quarantined per `docs/claude-md/untrusted-content-boundary.md`.
 
+`CLAUDE.md` is the primary source of truth; Codex and Cursor get a thin adapter each (`AGENTS.md`,
+`.cursor/rules/agent-base.mdc`) carrying the kit's non-negotiables — see `docs/MULTI_AGENT.md`.
+
 **Full reference** — architecture, the pipeline stages, packs, memory system, hooks table, custom
 skills, and update flow — lives on the project site: [`site/index.html`](site/index.html)
 *(repo-relative for now; the operator fills in the deployed `.vercel.app` URL here once T084's

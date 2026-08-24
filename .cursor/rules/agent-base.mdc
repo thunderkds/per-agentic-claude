@@ -1,7 +1,12 @@
-# AGENTS.md
+---
+description: Base rules for this repo, mirrored from CLAUDE.md (Claude Code's supervisor file).
+alwaysApply: true
+---
 
-This is a thin adapter for non-Claude agentic CLIs (Codex, etc.) — auto-read at the repo root.
-`CLAUDE.md` and `.claude/agents/` remain canonical; if anything here conflicts with those, they win.
+# Cursor adapter — base rules
+
+This is a thin adapter for Cursor, auto-read from `.cursor/rules/`. `CLAUDE.md` and
+`.claude/agents/` remain canonical; if anything here conflicts with those, they win.
 See `docs/claude-md/` for full pipeline, Phase 0, folder, naming, and memory detail.
 
 Before any work:
@@ -26,8 +31,8 @@ Before any work:
 5. No tests = not done and not shippable.
 6. UI tasks: all three design Evidence rows must be filled before Done or `ship`.
 
-## What Codex cannot enforce here
-Codex has no equivalent of Claude Code's hooks, skills, or `Skill`/`Agent` tooling. It cannot run
+## What Cursor cannot enforce here
+Cursor has no equivalent of Claude Code's hooks, skills, or `Skill`/`Agent` tooling. It cannot run
 `code-review`, `security-review`, `verify`, `ship`, or `migration-safety`, and it does not get the
 git-guardrails PreToolUse hook. Those stay on the Claude supervisor — see `docs/MULTI_AGENT.md`
 ("What does NOT port").

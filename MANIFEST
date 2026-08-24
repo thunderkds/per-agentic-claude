@@ -11,3 +11,4 @@
 templates
 docs/claude-md
 AGENTS.md
+.cursor/rules

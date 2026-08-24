@@ -92,22 +92,23 @@ output. Pause and ask if intent is unclear."
 ```
 
 - `-p` / `--print` is the non-interactive (headless) mode.
-- If you want Cursor to honor the same base rules as Claude sub-agents, mirror
-  `.claude/agents/general-agent-template.md` into a `.cursor/rules/agent-base.mdc` (see below).
+- `.cursor/rules/agent-base.mdc` already exists in this repo (`alwaysApply: true`), so Cursor honors
+  the same base rules as Claude sub-agents automatically — see "Shared adapters" below.
 
 ---
 
-## Shared `AGENTS.md`
+## Shared adapters (`AGENTS.md`, `.cursor/rules/agent-base.mdc`)
 
-`AGENTS.md` is an emerging cross-tool convention (read by Codex, and increasingly others). A root
-`AGENTS.md` already exists in this repo, mirroring the essentials from
-`.claude/agents/general-agent-template.md` so non-Claude implementers (Codex, etc.) inherit the base
-rules automatically without the dispatch prompt needing to repeat them.
+`AGENTS.md` (read by Codex, and increasingly others) and `.cursor/rules/agent-base.mdc` (read by
+Cursor) are **required, thin adapters** — not optional conveniences. Each inlines the kit's
+non-negotiables (the four Karpathy principle names, the six Hard-Stop Gate titles, the
+untrusted-content boundary rule, and "no TASK_GUIDE = no work") so a Codex-only or Cursor-only user
+receives them through a guaranteed channel, and points at `docs/claude-md/` for everything else.
 
-It is **not required** for the dispatch recipes above (the prompt already points at the guides) —
-it just removes repetition and gives Cursor/Codex a default to fall back on. Keep it a thin mirror,
-not a second source of truth; `CLAUDE.md` + `.claude/agents/` remain canonical for the supervisor.
-`.claude/agents/general-agent-template.md` carries a staleness-guard note pointing back at it.
+They gain content but not authority: `CLAUDE.md` + `.claude/agents/` remain canonical for the
+supervisor, and both adapters carry that line. See
+`docs/ddr/0006-provider-adapters-inline-non-negotiables.md` for the full decision record and
+`tests/test_provider_adapters.py` for the conformance test that keeps them in sync with `CLAUDE.md`.
 
 ---
 

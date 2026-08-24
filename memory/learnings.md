@@ -1483,3 +1483,49 @@ reimplementation.
 **not** word-split in zsh, so the script received one argument and reported `Unknown flag: --pack mobile`
 — subtly different from what a user typing two arguments gets. Pass arguments explicitly when the
 argument *boundary* is the thing under test.
+
+## `setup.sh` clones the remote, so no unmerged change is verifiable through the default install path (2026-08-24, T090)
+
+T090's `/verify` ran `setup.sh --copy` into a throwaway git repo and got a **T090-free tree** — 102
+file hashes, no `.cursor/` — because the installer shallow-clones GitHub `main` by design. Exit code
+0, cheerful log output, entirely the wrong tree: the failure is silent and looks like success, which
+is the dangerous shape. `SUPERVISOR_REPO="file:///path/to/worktree"` is the documented escape hatch
+(`setup.sh:12`) and works — the re-run produced 103 hashes with the adapter present.
+
+**Apply to**: any TASK_GUIDE whose change affects what `setup.sh`/`update.sh` deploy. Put the
+`SUPERVISOR_REPO=file://` form in the edge-case checklist, or the verification silently measures
+`main` instead of the branch under test. Same family as T044's merge gate and T085's step-limit
+assertion: an instrument that reports PASS while pointed at the wrong target.
+
+## "Blocked" and "broken" are different verdicts and the row must keep them apart (2026-08-24, T090)
+
+T090's `/verify` could not reach its primary surface: `codex exec` failed on ChatGPT-account model
+entitlement and `cursor-agent` was unauthenticated. Nothing about the change misbehaved. The
+temptation is to record PASS on the strength of everything else that passed (deployment, hash-lock
+tracking, idempotence, the `update.sh` conflict path, 717 tests) — but the unreached surface was
+**the one the task exists to guarantee**: that a non-Claude provider actually reads the adapters.
+
+**Apply to**: any verify where the blocking cause is environmental. Record what was *observed*
+separately from what was *inferred*, and never let an unmeasured claim round up to a proven one.
+T085 shipped a link that looked live and was not; T082's verify found its real gap was documentation
+rather than behaviour. Both were caught by insisting on the distinction.
+
+## A guide row that says "check first" delegates a Supervisor decision to an implementer who cannot make it (2026-08-24, T090)
+
+T090's guide listed `site/` as *"one content line matching the README, only if the site already
+carries a provider claim — check first"*. The implementer checked, measured
+`grep -c "AGENTS" site/index.html` → **0**, and correctly left the file alone. It obeyed the guide
+exactly and the outcome was still wrong: `site/index.html` is the **designated full reference**
+(T083/T085), and `README.md` says directly below T090's own new line that the full reference *"lives
+on the project site"*. The branch therefore advertised multi-provider support and pointed at a
+reference silent on it — **T085's P1b recurring in the same file for the same reason**.
+
+The defect is in the conditional. "Check whether X already exists, and act only if it does" asks the
+implementer to infer *intent* from *current state*, but current state was exactly what the task was
+meant to change. An absent provider claim was evidence the site needed one, not evidence to skip.
+
+**Apply to**: never write a TASK_GUIDE row whose condition is the thing the task exists to change.
+Decide at Stage 2 and state it flatly ("add a Providers section"), or leave it out of scope entirely
+and register it. Note who caught this: **the user asked whether the README and page had been
+updated** — no gate fired, and both Stage 4 passes were green, because a reviewer scoped to the diff
+cannot see a document that should have been in the diff and wasn't.

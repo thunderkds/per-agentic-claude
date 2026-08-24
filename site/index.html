@@ -199,6 +199,7 @@
     <p class="nav-group-title">Reference</p>
     <ul>
       <li><a href="#packs">Packs</a></li>
+      <li><a href="#providers">Providers</a></li>
       <li><a href="#repository-layout">Repository layout</a></li>
       <li><a href="#memory-system">Memory system</a></li>
       <li><a href="#options">Options</a></li>
@@ -211,9 +212,11 @@
 <div class="header">
   <h1>Easy Kit</h1>
   <p class="lead">
-    A multi-agent supervisor framework for Claude Code. One Supervisor session enforces a 5-stage
+    A multi-agent supervisor framework. On Claude Code, one Supervisor session enforces a 5-stage
     pipeline (plan → spawn isolated sub-agents → review → integrate → ship) through deterministic
-    hooks, not just prompted convention. Install it into any git repo with one command.
+    hooks, not just prompted convention. Other providers (Codex, Cursor) get the same doctrine
+    through a thin adapter — see Providers below for what carries over and what doesn't. Install
+    it into any git repo with one command.
   </p>
   <p class="lead">
     <a href="https://github.com/thunderkds/personal-agentic-claude" target="_blank" rel="noopener noreferrer">View the Supervisor GitHub repository</a>
@@ -423,6 +426,32 @@ sh ~/.supervisor/setup.sh --pack=mobile --pack=api   # multiple packs</pre>
 </p>
 </section>
 
+<section id="providers">
+<h2>Providers</h2>
+<p class="lead">
+  <code>CLAUDE.md</code> plus <code>docs/claude-md/</code> stay the one primary source of truth.
+  Every other provider gets a thin adapter file in the channel that provider actually auto-reads,
+  carrying the kit's non-negotiable rules (the four Karpathy principle names and the six Hard-Stop
+  Gate titles) inline and pointing back at the primary for everything else.
+</p>
+<div class="table-wrap">
+<table>
+<thead><tr><th>Adapter</th><th>Auto-read by</th><th>What it carries</th></tr></thead>
+<tbody>
+<tr><td><code>AGENTS.md</code></td><td>Codex</td><td>Karpathy principle names, Hard-Stop Gate titles, the untrusted-content boundary rule, and the "no TASK_GUIDE = no work" rule — inlined, not just linked</td></tr>
+<tr><td><code>.cursor/rules/agent-base.mdc</code></td><td>Cursor (<code>alwaysApply: true</code>)</td><td>The same inlined non-negotiables as <code>AGENTS.md</code></td></tr>
+</tbody>
+</table>
+</div>
+<p class="lead">
+  What a non-Claude provider <strong>cannot</strong> enforce: Claude Code's <code>PreToolUse</code>/
+  <code>PostToolUse</code> hooks, <code>Skill</code>/<code>Agent</code> tooling, and everything built
+  on them — <code>code-review</code>, <code>security-review</code>, <code>verify</code>,
+  <code>ship</code>, <code>migration-safety</code>, and the git-guardrails hook. Those stay on the
+  Claude supervisor; an adapter carries the doctrine, not the enforcement.
+</p>
+</section>
+
 <section id="repository-layout">
 <h2>Repository layout</h2>
 <p class="lead">
@@ -435,6 +464,8 @@ sh ~/.supervisor/setup.sh --pack=mobile --pack=api   # multiple packs</pre>
 <tbody>
 <tr><td><code>.claude/agents/</code></td><td>Core sub-agent definitions plus <code>general-agent-template.md</code></td></tr>
 <tr><td><code>.claude/skills/</code></td><td>Custom skills, auto-discovered by Claude Code</td></tr>
+<tr><td><code>AGENTS.md</code></td><td>Provider adapter for Codex — see Providers below</td></tr>
+<tr><td><code>.cursor/rules/agent-base.mdc</code></td><td>Provider adapter for Cursor — see Providers below</td></tr>
 <tr><td><code>tasks/</code></td><td>Task guides generated at Stage 2 (per project)</td></tr>
 <tr><td><code>templates/</code></td><td>Blank templates for PRD, PROJECT_SPEC, task board, TASK_GUIDE, and more</td></tr>
 <tr><td><code>packs/</code></td><td>Optional domain packs — each adds agents + skills for a specific project type</td></tr>

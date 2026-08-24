@@ -335,3 +335,56 @@ def test_memory_cap_matches_enforced_budget():
         f"page publishes character-cap figure(s) {stale} that disagree with the "
         f"enforced HOT_TIER_CHAR_BUDGET of {budget:,}"
     )
+
+
+# ---------------------------------------------------------------------------
+# T090 AC14 — the Providers section must stay in sync with the adapter files
+# that actually exist on disk. Both directions are checked: an adapter file
+# added on disk must be named on the page, and a path named on the page must
+# still exist on disk — so renaming or removing an adapter turns this RED
+# without a hardcoded copy of either list.
+# ---------------------------------------------------------------------------
+
+CURSOR_RULES_DIR = os.path.join(ROOT, ".cursor", "rules")
+
+
+def _adapter_paths_on_disk():
+    """Provider adapter file paths (repo-relative) that exist right now."""
+    paths = []
+    if os.path.isfile(os.path.join(ROOT, "AGENTS.md")):
+        paths.append("AGENTS.md")
+    if os.path.isdir(CURSOR_RULES_DIR):
+        for fname in sorted(os.listdir(CURSOR_RULES_DIR)):
+            if fname.endswith(".mdc"):
+                paths.append(f".cursor/rules/{fname}")
+    return paths
+
+
+def _providers_section_body():
+    text = _page_text()
+    section = re.search(r'<section id="providers">(.*?)</section>', text, re.DOTALL)
+    assert section, "page has no providers section — AC12"
+    return section.group(1)
+
+
+def _adapter_paths_mentioned_on_page(body):
+    """Adapter-shaped paths (AGENTS.md or .cursor/rules/*) named in <code>
+    tags inside the Providers section."""
+    coded = re.findall(r"<code>([^<]+\.(?:md|mdc))</code>", body)
+    return [p for p in coded if p == "AGENTS.md" or p.startswith(".cursor/rules/")]
+
+
+def test_providers_section_lists_every_adapter_on_disk():
+    body = _providers_section_body()
+    on_disk = _adapter_paths_on_disk()
+    assert on_disk, "no provider adapter files found on disk — fixture broken"
+    missing = [p for p in on_disk if p not in body]
+    assert not missing, f"adapter file(s) on disk missing from Providers section: {missing}"
+
+
+def test_providers_section_names_no_dead_adapter_path():
+    body = _providers_section_body()
+    mentioned = _adapter_paths_mentioned_on_page(body)
+    assert mentioned, "Providers section names no adapter path — fixture broken"
+    dead = [p for p in mentioned if not os.path.isfile(os.path.join(ROOT, p))]
+    assert not dead, f"Providers section names adapter path(s) no longer on disk: {dead}"
