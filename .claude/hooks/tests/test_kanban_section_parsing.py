@@ -12,8 +12,10 @@ heading inside a KANBAN row."
 Run with: python3 -m pytest .claude/hooks/tests/test_kanban_section_parsing.py -v
 """
 import importlib.util
+import ast
 import os
 import re
+import textwrap
 import sys
 import types
 
@@ -178,6 +180,36 @@ def _tasks_in_section_impl(kanban_text, section_title):
         for line in block.splitlines()
         if line.strip().startswith("- ") and re.search(r"\*\*(T\d+)\*\*", line)
     ]
+
+
+def _real_tasks_in_section(kanban_text, section_title):
+    """Execute the **real** `tasks_in_section` closure, extracted from
+    `pre_bash_block_unsafe_merge.py`'s source by AST and exec'd with `kanban`
+    bound to fixture text.
+
+    T093 Stage 4 P2: the sibling `_tasks_in_section_impl` above is a hand-copy of
+    the same regex logic. Pinning a copy does not pin production — swapping the
+    real closure's `re.search` for `re.findall` would break the first-match-per-line
+    property while a copy-based test stayed green, and AC8's whole purpose was that
+    the reasoning exempting the merge gate is *pinned rather than trusted*. This
+    runs the production text itself; the closure lives inside `main()`, so AST
+    extraction is the only way to reach it without the hook's stdin protocol.
+    """
+    with open(BLOCK_MERGE_PATH) as f:
+        src = f.read()
+    node = next(
+        (n for n in ast.walk(ast.parse(src))
+         if isinstance(n, ast.FunctionDef) and n.name == "tasks_in_section"),
+        None,
+    )
+    assert node is not None, (
+        "tasks_in_section closure not found in %s — it was renamed or removed, and "
+        "AC8's pin is no longer pointing at anything" % BLOCK_MERGE_PATH
+    )
+    fn_src = textwrap.dedent(ast.get_source_segment(src, node))
+    namespace = {"re": re, "kanban": kanban_text}
+    exec(compile(fn_src, BLOCK_MERGE_PATH, "exec"), namespace)
+    return namespace["tasks_in_section"](section_title)
 
 
 def test_tasks_in_section_survives_inline_hash_quote_in_earlier_section():
@@ -387,9 +419,22 @@ def test_tasks_in_section_takes_only_the_first_bold_id_per_line():
 - [x] **T039** — earlier work | C2 | Completed: 2026-07-23
 - [x] **T042** — earlier work | C1 | Completed: 2026-07-21
 """
-    assert _tasks_in_section_impl(fixture, "In Progress") == ["T050"]
-    assert _tasks_in_section_impl(fixture, "Done") == ["T039", "T042"]
+    assert _real_tasks_in_section(fixture, "In Progress") == ["T050"]
+    assert _real_tasks_in_section(fixture, "Done") == ["T039", "T042"]
 
+
+
+def test_ac8_pin_runs_the_real_closure_not_the_local_copy():
+    """T093 Stage 4 P2 guard: prove the AC8 pin reaches production text. If the
+    extraction ever silently stops finding the closure, _real_tasks_in_section
+    asserts loudly rather than degrading to the copy."""
+    src_free = _real_tasks_in_section(
+        "### Done\n- [x] **T001** — mentions **T002** in prose | C1\n", "Done"
+    )
+    assert src_free == ["T001"], (
+        "the real closure no longer takes only the first bold ID per line — the "
+        "merge-gate exemption recorded in T093's guide is void"
+    )
 
 
 def test_find_kanban_section_ignores_a_section_heading_quoted_in_a_row(monkeypatch):
