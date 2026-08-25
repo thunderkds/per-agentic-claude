@@ -308,8 +308,6 @@ def test_find_kanban_section_closed_body_stops_at_the_next_h2(monkeypatch):
         os.remove(path)
 
 
-# --- T093 AC4: the live board, every ID that OWNS a row ---------------------------
-
 # --- T094: board-state fixtures for the two live-board checks ---------------------
 # Both checks below used to assert that the live board was in a particular *state* —
 # that it had Todo rows, and that it carried a Done->Todo bold reference. Those are
@@ -356,16 +354,17 @@ HAZARD_BOARD = """# PROJECT_KANBAN.md
 
 
 def _pre_t093_find_kanban_section(text, task_ref):
-    """The resolver as it stood *before* T093: the section body is searched for a bare
-    `**Txxx**` substring, with no `^- [ ] ` row anchor, and Done is scanned first — so
-    a Done row merely *mentioning* a task won that task's section. Kept here as the
+    """The resolver with T093's row anchor removed, and only that: the section body is
+    searched for a bare `**Txxx**` substring instead of an `^- [ ] **Txxx**` row, and Done
+    is scanned first — so a Done row merely *mentioning* a task won that task's section.
+    The heading side keeps its current anchoring, because the row anchor is the single
+    axis this probe exists to vary. Kept here as the
     anti-vacuity oracle (T094 AC4/AC9): if the current tests would also pass under this
     implementation, they are not testing T093's fix."""
-    import re as _re
     for section in ("Done", "Ready for Review", "In Progress", "Todo", "Closed"):
-        m = _re.search(
-            rf"^### {_re.escape(section)}[^\n]*\n(.*?)(?=^##|\Z)", text,
-            _re.DOTALL | _re.MULTILINE,
+        m = re.search(
+            rf"^### {re.escape(section)}[^\n]*\n(.*?)(?=^##|\Z)", text,
+            re.DOTALL | re.MULTILINE,
         )
         if m and f"**{task_ref}**" in m.group(1):
             return section
@@ -380,6 +379,8 @@ def _board_path():
     hand-copied paraphrase of them."""
     return validate_guide.KANBAN
 
+
+# --- T093 AC4: the live board, every ID that OWNS a row ---------------------------
 
 def _owning_rows_on_live_board():
     """Independent, line-scoped reading of the live board: for each ID that owns a row,
@@ -439,6 +440,11 @@ def test_live_board_cross_section_bold_references_resolve_to_their_owner():
     the resolver. Every pair that does exist is now checked, and a drained board simply
     has none to check. The unconditional version is
     `test_cross_section_hazard_resolves_to_the_owning_row` below, on a fixture.
+
+    The per-row check above subsumes this one logically — if `other` owns a row under
+    `there`, it already asserts that resolution. This is kept for its failure message:
+    it names the referencing row and the hazard direction, which is what a maintainer
+    needs to see when the resolver regresses.
     """
     order = ("Done", "Ready for Review", "In Progress", "Todo", "Closed")
     with open(_board_path()) as f:
