@@ -136,18 +136,6 @@ def test_find_kanban_section_todo_never_resolves_as_done(monkeypatch):
         os.remove(path)
 
 
-def test_find_kanban_section_on_real_current_board():
-    r"""AC4: the actual live PROJECT_KANBAN.md — every task resolves to its
-    true section (no regression on the real file)."""
-    kanban_path = os.path.join(ROOT, "PROJECT_KANBAN.md")
-    with open(kanban_path) as f:
-        text = f.read()
-    done_ids = re.findall(r"- \[x\] \*\*(T\d+)\*\*", text)
-    assert done_ids, "fixture assumption broken: no Done tasks found on real board"
-    for tid in done_ids:
-        assert validate_guide.find_kanban_section(tid) == "Done", tid
-
-
 # --- AC6: negative — empty / missing / malformed board still behaves as before -----
 
 def test_find_kanban_section_missing_file(monkeypatch):
@@ -322,12 +310,82 @@ def test_find_kanban_section_closed_body_stops_at_the_next_h2(monkeypatch):
 
 # --- T093 AC4: the live board, every ID that OWNS a row ---------------------------
 
+# --- T094: board-state fixtures for the two live-board checks ---------------------
+# Both checks below used to assert that the live board was in a particular *state* —
+# that it had Todo rows, and that it carried a Done->Todo bold reference. Those are
+# incidental properties of a data file that drains every time the queue empties (the
+# same defect class as T075). The state-dependent assertions are pinned on these
+# fixtures instead, where they cannot drain away; the live board keeps only the
+# per-row property, which holds vacuously when it is empty.
+
+DRAINED_BOARD = """# PROJECT_KANBAN.md
+
+## Board
+
+### Todo
+
+### In Progress
+
+### Ready for Review
+
+### Done
+- [x] **T091** — Staleness Guard corrected | C2 | Completed: 2026-08-24
+- [x] **T093** — anchored the section resolver | C2 | Completed: 2026-08-25
+
+### Closed
+"""
+
+# The T093 hazard, held unconditionally: a Done row (scanned first) bold-references
+# **T900**, which owns a row in the later-scanned Todo section.
+HAZARD_BOARD = """# PROJECT_KANBAN.md
+
+## Board
+
+### Todo
+- [ ] **T900** — the follow-up, owned here | C1 | Risk: Low | P1
+
+### In Progress
+
+### Ready for Review
+
+### Done
+- [x] **T899** — shipped; spawned **T900** as the follow-up | C2 | Completed: 2026-08-25
+
+### Closed
+"""
+
+
+def _pre_t093_find_kanban_section(text, task_ref):
+    """The resolver as it stood *before* T093: the section body is searched for a bare
+    `**Txxx**` substring, with no `^- [ ] ` row anchor, and Done is scanned first — so
+    a Done row merely *mentioning* a task won that task's section. Kept here as the
+    anti-vacuity oracle (T094 AC4/AC9): if the current tests would also pass under this
+    implementation, they are not testing T093's fix."""
+    import re as _re
+    for section in ("Done", "Ready for Review", "In Progress", "Todo", "Closed"):
+        m = _re.search(
+            rf"^### {_re.escape(section)}[^\n]*\n(.*?)(?=^##|\Z)", text,
+            _re.DOTALL | _re.MULTILINE,
+        )
+        if m and f"**{task_ref}**" in m.group(1):
+            return section
+    return None
+
+
+def _board_path():
+    """The board the live-board checks read, resolved through `validate_guide.KANBAN`
+    rather than a hard-coded ROOT join. That single indirection is what lets
+    `_write_fixture_kanban` point the checks *and* the production resolver at the same
+    fixture, so the drained-board case (T094 AC2) can run these very tests instead of a
+    hand-copied paraphrase of them."""
+    return validate_guide.KANBAN
+
+
 def _owning_rows_on_live_board():
     """Independent, line-scoped reading of the live board: for each ID that owns a row,
     the section heading it actually sits under. Deliberately NOT reusing
     find_kanban_section — this is the oracle it is checked against."""
-    kanban_path = os.path.join(ROOT, "PROJECT_KANBAN.md")
-    with open(kanban_path) as f:
+    with open(_board_path()) as f:
         lines = f.read().splitlines()
     section = None
     owned = []
@@ -351,12 +409,17 @@ def test_find_kanban_section_on_real_current_board():
     `- [x]` ones) must resolve to the section it is really in. The pre-T093 version of
     this test collected `- \[x\] \*\*(T\d+)\*\*` only, so a Todo row shadowed by a bold
     mention inside a Done row was the one case it could not see — and it stayed green
-    *because* the bug's wrong answer was 'Done'."""
-    owned = _owning_rows_on_live_board()
-    assert owned, "fixture assumption broken: no owning rows found on real board"
-    assert any(sec == "Done" for _, sec in owned), "no Done rows found on real board"
-    assert any(sec == "Todo" for _, sec in owned), "no Todo rows found on real board"
-    for tid, section in owned:
+    *because* the bug's wrong answer was 'Done'.
+
+    T094: the three fixture-assumption guards this test carried ("no Todo rows found on
+    real board") asserted that the board is never empty. That is an incidental property
+    of a queue, and it failed the ordinary day the queue drained. The per-row property
+    is the one worth asserting: it is strictly meaningful on a populated board and
+    vacuously true on a drained one, so ordinary board churn can no longer redden it.
+    The hazard the guards were standing watch over now has its own unconditional pin,
+    `test_cross_section_hazard_resolves_to_the_owning_row`, plus the pre-T093 probe
+    beside it — a fixture cannot drain."""
+    for tid, section in _owning_rows_on_live_board():
         resolved = validate_guide.find_kanban_section(tid)
         assert resolved == section, (
             f"{tid} owns a row under '{section}' on PROJECT_KANBAN.md but "
@@ -365,26 +428,22 @@ def test_find_kanban_section_on_real_current_board():
         )
 
 
-def test_live_board_still_carries_a_cross_section_bold_reference():
-    """T093 standing regression witness: the fix makes bold cross-references harmless, so
-    the board keeps them (the two un-boldings from `30ae3d6`/`e7945eb` were restored and
-    left restored). If this fails, someone un-bolded them again — T093's workaround
-    returning — and `test_find_kanban_section_on_real_current_board` above quietly stopped
-    exercising the hazard it exists for.
+def test_live_board_cross_section_bold_references_resolve_to_their_owner():
+    """T093's hazard, checked on the live board without requiring the live board to
+    supply one. find_kanban_section scans Done first, so the defect direction is a row
+    in an **earlier-scanned** section bold-referencing a task that owns a row in a
+    **later-scanned** one (Done -> Todo); the reverse was always harmless.
 
-    Deliberately stricter than "some row mentions two IDs", and stricter again than "any
-    two different sections": only one *direction* reproduces the defect. find_kanban_section
-    scans Done first, so the hazard is a row in an **earlier-scanned** section bold-
-    referencing a task that owns a row in a **later-scanned** one (Done -> Todo). The
-    reverse (T091's Todo row naming **T088** in Done) was always harmless — T088's own Done
-    row wins under the old code too — so accepting it would make this witness vacuous.
+    T094: this test used to `assert hazards` — i.e. demand that the board *carry* such a
+    pair. It went red with `assert []` when the board drained, which says nothing about
+    the resolver. Every pair that does exist is now checked, and a drained board simply
+    has none to check. The unconditional version is
+    `test_cross_section_hazard_resolves_to_the_owning_row` below, on a fixture.
     """
     order = ("Done", "Ready for Review", "In Progress", "Todo", "Closed")
-    kanban_path = os.path.join(ROOT, "PROJECT_KANBAN.md")
-    with open(kanban_path) as f:
+    with open(_board_path()) as f:
         lines = f.read().splitlines()
     owner_section = dict(_owning_rows_on_live_board())
-    hazards = []
     for line in lines:
         own = re.match(r"^- \[[ x~]\] \*\*(T\d+)\*\*", line)
         if not own:
@@ -393,14 +452,52 @@ def test_live_board_still_carries_a_cross_section_bold_reference():
         for other in set(re.findall(r"\*\*(T\d+)\*\*", line)) - {own.group(1)}:
             there = owner_section.get(other)
             if here in order and there in order and order.index(here) < order.index(there):
-                hazards.append((own.group(1), here, other, there))
-    assert hazards, (
-        "no board row in an earlier-scanned section bold-references a task owning a row in "
-        "a later-scanned one (e.g. a Done row naming a Todo follow-up) — if that was a "
-        "deliberate un-bolding, it is T093's workaround returning; the anchored resolver "
-        "makes it unnecessary, and removing it blinds "
-        "test_find_kanban_section_on_real_current_board to the defect T093 fixed"
+                resolved = validate_guide.find_kanban_section(other)
+                assert resolved == there, (
+                    f"{own.group(1)}'s row under '{here}' bold-references {other}, which "
+                    f"owns a row under '{there}', but find_kanban_section() resolved "
+                    f"{other} to '{resolved}' — the mention won over the owning row, "
+                    f"which is exactly the defect T093 fixed"
+                )
+
+
+def test_cross_section_hazard_resolves_to_the_owning_row(monkeypatch):
+    """T093's regression, pinned unconditionally (T094 AC4). A Done row bold-references
+    **T900**, which owns a Todo row; the owning row must win."""
+    path = _write_fixture_kanban(monkeypatch, validate_guide, HAZARD_BOARD)
+    try:
+        assert validate_guide.find_kanban_section("T900") == "Todo"
+        assert validate_guide.find_kanban_section("T899") == "Done"
+    finally:
+        os.remove(path)
+
+
+def test_pre_t093_resolver_fails_the_cross_section_hazard():
+    """Anti-vacuity probe (T094 AC4 / Success Criterion 3). The assertion above is only
+    worth having if the pre-T093 resolver would fail it. If this test ever goes red, the
+    hazard fixture has stopped reproducing the defect and the pin above is decorative."""
+    assert _pre_t093_find_kanban_section(HAZARD_BOARD, "T900") == "Done", (
+        "HAZARD_BOARD no longer reproduces the pre-T093 defect — the fixture stopped "
+        "putting a Done-row mention ahead of the owning Todo row, so "
+        "test_cross_section_hazard_resolves_to_the_owning_row proves nothing"
     )
+
+
+def test_live_board_checks_pass_on_a_drained_board(monkeypatch):
+    """T094 AC2: the two live-board checks above must survive the board draining — the
+    ordinary end state of every completed milestone, and the state that reddened both of
+    them. Runs the real test functions against a drained fixture rather than a paraphrase
+    of them, so it cannot drift from what they actually assert."""
+    path = _write_fixture_kanban(monkeypatch, validate_guide, DRAINED_BOARD)
+    try:
+        drained = [t for t, sec in _owning_rows_on_live_board()
+                   if sec in ("Todo", "In Progress")]
+        assert not drained, f"fixture is not drained: {drained}"
+        assert any(sec == "Done" for _, sec in _owning_rows_on_live_board())
+        test_find_kanban_section_on_real_current_board()
+        test_live_board_cross_section_bold_references_resolve_to_their_owner()
+    finally:
+        os.remove(path)
 
 
 # --- T093 AC8 / M4: pin tasks_in_section's first-match-per-line property -----------
