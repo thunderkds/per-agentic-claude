@@ -1635,3 +1635,24 @@ determiner-agnostic regex, proven non-vacuous by three stale phrasings going red
 
 Pushed as `fix/t091-staleness-guard` (not merged to `main`) at the user's request; the board row is
 closed. Suite 39 -> 40.
+
+---
+
+## v2 is the working branch; main is frozen as the v1 runtime (2026-08-25)
+
+All work from 2026-08-25 forward lands on branch `v2`. `main` is **not** a merge target any more:
+the user runs the kit from `main` as their live v1 installation, and wants that surface to stay
+stable while v2 evolves. Merging v2 into main would change the tool they are actively using to do
+the work.
+
+**Operational consequences for the Supervisor:**
+- Stage 3 worktrees branch from `v2`, not `main`.
+- Stage 5 integration merges the task branch into `v2` and stops there. Never open or merge a PR
+  into `main` without the user explicitly reversing this decision.
+- `git push` targets `v2`. The push-triggered memory pass commits to `v2` like everything else.
+- `PROJECT_KANBAN.md` remains a single board — this is a branch policy, not a second project, so
+  Hard-Stop Gate 4 (one project per KANBAN) does not fire.
+
+Rationale recorded because it is invisible in the code: nothing in the repo marks `main` as
+frozen, and the default instinct of both the Supervisor and any sub-agent is to treat `main` as
+the integration target.

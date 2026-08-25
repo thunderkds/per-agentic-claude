@@ -23,6 +23,7 @@
      (mean 326, max 796). Reported by the size test, never enforced; /compact-memory's job. -->
 
 ### Decisions
+- [v2 is the working branch, main frozen](decisions.md) — from 2026-08-25 all work lands on `v2`; `main` is the user's live v1 install and is never a merge target; worktrees branch from v2, Stage 5 merges into v2
 - [CLAUDE_LEGACY.md sync policy](decisions.md) — mirror new skills + session-startup gates + Hard-Stop Gates from CLAUDE.md into CLAUDE_LEGACY.md on each addition; bump version
 - [Hard-stop gates in Permanent Rules](decisions.md) — 4 Supervisor self-checks: no TASK_GUIDE=no work; refactor/QA floors at C2/Medium; KANBAN current before session ends; one project per KANBAN
 - [Codebase Map](codebase-map.md) — structural snapshot (tree, entry points, hotspots) in memory/codebase-map.md; cold-tier; C2/C3 agents read it; refresh via /map-codebase
