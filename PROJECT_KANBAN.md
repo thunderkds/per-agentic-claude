@@ -1,5 +1,5 @@
 # PROJECT_KANBAN.md
-**Last updated**: 2026-08-24
+**Last updated**: 2026-08-25
 
 > Compact task board. Full context lives in `PROJECT_SPEC.md`. Update this file whenever a task status changes.
 
@@ -8,6 +8,8 @@
 ## Board
 
 ### Todo
+
+- [ ] **T094** — **The hook suite is red on v2's first commit — three failures, two unrelated causes.** Registered 2026-08-25 as v2's first task, found by running `python3 -m pytest .claude/hooks/tests/ -q` on the branch point: `3 failed, 691 passed`, all inherited from `main`. **Group A** — `test_kanban_section_parsing.py`'s `test_find_kanban_section_on_real_current_board` and `test_live_board_still_carries_a_cross_section_bold_reference` assert against the *live* `PROJECT_KANBAN.md` and fail now that the board is drained (`no Todo rows found on real board`; `assert []`). `find_kanban_section()` is correct — T093's fix stands; the tests encoded "the board always has work on it" as a precondition, the same defect class as T075's budget test coupled to a nearly-full file. Registering this very row turns both green without fixing anything, so the fix must be proven against a drained-board fixture, not the live file. Also in scope: that file defines `test_find_kanban_section_on_real_current_board` **twice** (lines 139 and 349); Python binds the second, so the T045 version has been dead code since T093 landed. **Group B** — `test_agent_guide_dedup.py::test_ac7...[c-infra]` fails at `10,327 -> 10,518 chars`: T091's Staleness Guard rewrite (`bbfd0f0`, `3b036e1`) added +191 chars to the *shared* `general-agent-template.md`, and `common-infrastructure.md` is the smallest role guide, so only that pair breached. A real per-spawn context regression T091's own review missed; the fix is to compress the guard while keeping all of T091's content, not to re-pin the baseline — the test's own comment warns that a blanket re-pin "would have made the next role to breach invisible", and this is that next one. | common-infrastructure | C2 | Risk: Medium | P0 | Guide: `tasks/TASK_GUIDE_T094.md`
 
 ### In Progress
 
