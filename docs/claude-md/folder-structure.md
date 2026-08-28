@@ -77,4 +77,8 @@ this repo from running its own skills. `scripts/validate.sh` and
 real directory, or acquires an absolute target.
 
 Downstream installs get the same shape: `setup.sh` copies the canon to plain root from `MANIFEST`
-and then re-creates both links via `install_canon_symlinks()`.
+and then re-creates both links via `install_canon_symlinks()`. `update.sh` does the same on every
+run — both call `harness_install_canon_symlinks` in `lib/harness-fetch.sh`, so an upgrade from a
+pre-relocation install cannot leave Claude Code reading a stale `.claude/skills`. A real directory
+found there is moved aside to `<link>.bak`; if that fails, the installer exits non-zero rather than
+reporting success over content Claude Code cannot see.

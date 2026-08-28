@@ -11,6 +11,8 @@
 #   harness_fetch <repo_url> <dest>    -> git clone --depth 1 <repo_url> into <dest>
 #   harness_copy_manifest <tmp> <target> <manifest>
 #                                      -> copy each MANIFEST-listed path from <tmp> into <target>
+#   harness_install_canon_symlinks [target]
+#                                      -> (re)point .claude/{skills,agents} at the plain-root canon
 #   harness_cleanup                    -> rm -rf all registered temp dirs (idempotent)
 #
 # Cleanup contract (ADR-0001): the first registered dir installs traps so every
@@ -145,4 +147,46 @@ harness_copy_manifest() {
     [ -e "$_dst" ] && rm -rf "$_dst"
     cp -r "$_src" "$_dst"
   done < "$_manifest_path"
+}
+
+# harness_install_canon_symlinks <target_dir>
+# Re-establish `.claude/skills -> ../skills` and `.claude/agents -> ../agents`
+# in <target_dir> (defaults to `.`). Idempotent: safe to call on every setup AND
+# every update run, which is what keeps Claude Code reading the freshly copied
+# plain-root canon rather than a stale copy (DDR-0007).
+#
+# Per canon directory:
+#   symlink (any target) -> replaced with the correct RELATIVE link
+#   missing              -> created
+#   real directory       -> pre-T096 install: moved aside to `<link>.bak` and
+#                           replaced with the link. If `<link>.bak` already
+#                           exists the run FAILS (return 1) rather than
+#                           overwrite a previous backup.
+#   regular file         -> left to `ln -s`, which fails; under `set -e` the
+#                           caller exits non-zero. Failing loudly is correct.
+#
+# Never returns 0 while `.claude/<canon>` still holds content Claude Code would
+# read instead of the canon — a silent success there is the bug this prevents.
+harness_install_canon_symlinks() {
+  _target_dir="${1:-.}"
+  [ -d "$_target_dir/.claude" ] || mkdir -p "$_target_dir/.claude"
+
+  for _canon in skills agents; do
+    _link="$_target_dir/.claude/$_canon"
+
+    if [ -L "$_link" ]; then
+      rm "$_link"
+    elif [ -d "$_link" ]; then
+      _backup="$_link.bak"
+      if [ -e "$_backup" ]; then
+        _harness_log_error "'$_link' is a real directory from an older install and '$_backup' already exists."
+        _harness_log_error "Move or delete '$_backup', then re-run — Claude Code cannot see the canon at './$_canon' until '$_link' is a symlink."
+        return 1
+      fi
+      mv "$_link" "$_backup"
+      _harness_log_warn "'$_link' was a real directory from an older install — moved to '$_backup' and replaced with a symlink onto './$_canon'."
+    fi
+
+    ln -s "../$_canon" "$_link"
+  done
 }

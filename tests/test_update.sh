@@ -302,5 +302,92 @@ if fresh_target "target6"; then
   fi
 fi
 
+# =============================================================================
+# Test 7 — THE REAL UPGRADE PATH (AC13/AC15). Install at the pre-T096 shape
+# (`.claude/skills` a real directory holding stale content), run the REAL
+# update.sh, and assert on what Claude Code would actually read: the content at
+# `.claude/skills/brainstorming/SKILL.md` must equal the canon at
+# `skills/brainstorming/SKILL.md`.
+# =============================================================================
+if fresh_target "target7"; then
+  T7="$NEW_TARGET"
+  rm -f "$T7/.claude/skills"
+  mkdir -p "$T7/.claude/skills/brainstorming"
+  printf 'STALE CONTENT FROM OLD INSTALL\n' > "$T7/.claude/skills/brainstorming/SKILL.md"
+
+  RC=0
+  run_update "$T7" /dev/null || RC=$?
+  if [ "$RC" -eq 0 ]; then
+    pass "test7: update.sh exited 0 on a pre-T096-shape install"
+  else
+    fail "test7: update.sh returned non-zero ($RC) — see $WORK/update.log"
+    cat "$WORK/update.log" >&2
+  fi
+  if [ -L "$T7/.claude/skills" ] && [ "$(readlink "$T7/.claude/skills")" = "../skills" ]; then
+    pass "test7: .claude/skills is the relative symlink after update"
+  else
+    fail "test7: .claude/skills is not '../skills' after update"
+  fi
+  # The assertion that matters: read through the path Claude Code uses.
+  if [ -f "$T7/.claude/skills/brainstorming/SKILL.md" ] \
+     && cmp -s "$T7/.claude/skills/brainstorming/SKILL.md" "$T7/skills/brainstorming/SKILL.md"; then
+    pass "test7: .claude/skills/brainstorming/SKILL.md matches the plain-root canon"
+  else
+    fail "test7: content read via .claude/skills does not match the canon (stale canon regression)"
+  fi
+  if grep -q 'STALE CONTENT FROM OLD INSTALL' "$T7/.claude/skills.bak/brainstorming/SKILL.md" 2>/dev/null; then
+    pass "test7: the stale directory was preserved at .claude/skills.bak, not deleted"
+  else
+    fail "test7: stale content was not preserved at .claude/skills.bak"
+  fi
+fi
+
+# =============================================================================
+# Test 8 — correct-shape install with the canon link DELETED: update.sh restores
+# it. Without this, the link is never re-established by any run (AC13).
+# =============================================================================
+if fresh_target "target8"; then
+  T8="$NEW_TARGET"
+  rm -f "$T8/.claude/skills" "$T8/.claude/agents"
+
+  RC=0
+  run_update "$T8" /dev/null || RC=$?
+  if [ "$RC" -eq 0 ]; then
+    pass "test8: update.sh exited 0 with the canon links missing"
+  else
+    fail "test8: update.sh returned non-zero ($RC) — see $WORK/update.log"
+  fi
+  if [ "$(readlink "$T8/.claude/skills")" = "../skills" ] \
+     && [ "$(readlink "$T8/.claude/agents")" = "../agents" ]; then
+    pass "test8: update.sh re-established both canon symlinks"
+  else
+    fail "test8: canon symlinks still missing after update.sh"
+  fi
+fi
+
+# =============================================================================
+# Test 9 — stale real directory that cannot be migrated (a .bak already exists):
+# update.sh must FAIL rather than print "Update complete" over it (AC14).
+# =============================================================================
+if fresh_target "target9"; then
+  T9="$NEW_TARGET"
+  rm -f "$T9/.claude/skills"
+  mkdir -p "$T9/.claude/skills" "$T9/.claude/skills.bak"
+  printf 'STALE CONTENT FROM OLD INSTALL\n' > "$T9/.claude/skills/SKILL.md"
+
+  RC=0
+  run_update "$T9" /dev/null || RC=$?
+  if [ "$RC" -ne 0 ]; then
+    pass "test9: update.sh exits non-zero when a stale canon dir cannot be migrated (rc=$RC)"
+  else
+    fail "test9: update.sh reported success over a stale, unmigratable .claude/skills"
+  fi
+  if ! grep -q 'Update complete' "$WORK/update.log" 2>/dev/null; then
+    pass "test9: no 'Update complete' printed over a stale canon"
+  else
+    fail "test9: printed 'Update complete' over a stale canon"
+  fi
+fi
+
 printf '\n----- summary: %d passed, %d failed -----\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]

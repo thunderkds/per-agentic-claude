@@ -214,6 +214,40 @@ else
   fail "test3: edited file was not overwritten on re-run"
 fi
 
+# =============================================================================
+# Test 4 — pre-T096 install shape: `.claude/skills` a REAL dir holding stale
+# content. setup.sh must migrate it (or fail) — never report "Setup complete"
+# over content Claude Code would read instead of the canon (AC14).
+# =============================================================================
+TARGET4="$WORK/target4"
+mkdir -p "$TARGET4"
+git -C "$TARGET4" init -q
+run_setup "$TARGET4" || fail "test4: initial setup failed"
+# Recreate the pre-T096 shape: a real directory with stale content.
+rm -f "$TARGET4/.claude/skills"
+mkdir -p "$TARGET4/.claude/skills/brainstorming"
+printf 'STALE CONTENT FROM OLD INSTALL\n' > "$TARGET4/.claude/skills/brainstorming/SKILL.md"
+
+T4_RC=0
+run_setup "$TARGET4" || T4_RC=$?
+
+if [ "$T4_RC" -ne 0 ] || [ -L "$TARGET4/.claude/skills" ]; then
+  pass "test4: setup.sh did not silently succeed over a stale real .claude/skills"
+else
+  fail "test4: setup.sh exited 0 leaving .claude/skills a stale real directory"
+fi
+if [ -L "$TARGET4/.claude/skills" ] \
+   && grep -q 'skill-content' "$TARGET4/.claude/skills/brainstorming/SKILL.md" 2>/dev/null; then
+  pass "test4: stale directory migrated — .claude/skills now serves the fresh canon"
+else
+  fail "test4: .claude/skills does not serve the fresh canon after setup"
+fi
+if grep -q 'STALE CONTENT FROM OLD INSTALL' "$TARGET4/.claude/skills.bak/brainstorming/SKILL.md" 2>/dev/null; then
+  pass "test4: the stale directory was preserved at .claude/skills.bak, not deleted"
+else
+  fail "test4: stale content was not preserved at .claude/skills.bak"
+fi
+
 # ── Summary ──────────────────────────────────────────────────────────────────
 printf '\n----- summary: %d passed, %d failed -----\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]

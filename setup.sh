@@ -154,20 +154,7 @@ prompt_packs() {
 # target would break git worktrees, which each need the link to resolve inside
 # their own checkout rather than back into the main one.
 install_canon_symlinks() {
-  [ -d ./.claude ] || mkdir -p ./.claude
-
-  for canon in skills agents; do
-    link="./.claude/$canon"
-
-    if [ -L "$link" ]; then
-      rm "$link"
-    elif [ -d "$link" ]; then
-      log_warn "'$link' is a real directory from an older install. Move its contents into ./$canon and remove it, then re-run setup."
-      continue
-    fi
-
-    ln -s "../$canon" "$link"
-  done
+  harness_install_canon_symlinks .
 }
 
 # ── Install a single file using symlink or copy mode ─────────────────────────
