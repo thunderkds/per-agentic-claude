@@ -47,14 +47,14 @@ check_frontmatter() {
   ok "$f"
 }
 
-section "Skill frontmatter (.claude/skills/*/SKILL.md)"
-for d in .claude/skills/*/; do
+section "Skill frontmatter (skills/*/SKILL.md)"
+for d in skills/*/; do
   [ -d "$d" ] || continue
   check_frontmatter "${d}SKILL.md"
 done
 
-section "Agent frontmatter (.claude/agents/*.md)"
-for f in .claude/agents/*.md; do
+section "Agent frontmatter (agents/*.md)"
+for f in agents/*.md; do
   [ -f "$f" ] || continue
   check_frontmatter "$f"
 done
@@ -93,8 +93,22 @@ rm -f "$MISSFILE"
 
 # ── 4. Mandatory folders from CLAUDE.md ──────────────────────────────────────
 section "Mandatory framework folders present"
-for d in .claude/agents .claude/skills templates; do
+for d in agents skills templates; do
   if [ -d "$d" ]; then ok "$d/"; else err "required folder missing: $d/"; fi
+done
+
+# ── 5. Canon symlinks Claude Code reads through ──────────────────────────────
+section "Claude harness symlinks (.claude/{skills,agents} -> ../{skills,agents})"
+for c in skills agents; do
+  if [ ! -L ".claude/$c" ]; then
+    err ".claude/$c is not a symlink (canon lives at ./$c; .claude must link to it)"
+  elif [ "$(readlink ".claude/$c")" != "../$c" ]; then
+    err ".claude/$c -> $(readlink ".claude/$c") (must be the relative path ../$c)"
+  elif [ ! -e ".claude/$c" ]; then
+    err ".claude/$c is a broken symlink"
+  else
+    ok ".claude/$c -> ../$c"
+  fi
 done
 
 # ── Result ───────────────────────────────────────────────────────────────────

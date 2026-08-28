@@ -63,6 +63,8 @@ assert_exists() {
 
 printf '\n== Asserting installed artifacts ==\n'
 assert_exists CLAUDE.md
+assert_exists agents
+assert_exists skills
 assert_exists .claude/agents
 assert_exists .claude/skills
 assert_exists .claude/hooks
@@ -88,6 +90,21 @@ if [ -L "$TARGET/CLAUDE.md" ]; then
 else
   printf '  [ok]   setup.sh produced a real CLAUDE.md, not a symlink\n'
 fi
+
+# Canon installs at plain root; .claude/ must reach it through RELATIVE symlinks.
+# An absolute target here would point back at the machine that ran setup.sh.
+for canon in skills agents; do
+  link="$TARGET/.claude/$canon"
+  if [ ! -L "$link" ]; then
+    printf '  [FAIL] .claude/%s is not a symlink after install\n' "$canon"; FAIL=1
+  elif [ "$(readlink "$link")" != "../$canon" ]; then
+    printf '  [FAIL] .claude/%s -> %s (expected ../%s)\n' "$canon" "$(readlink "$link")" "$canon"; FAIL=1
+  elif [ ! -e "$link" ]; then
+    printf '  [FAIL] .claude/%s is a broken symlink\n' "$canon"; FAIL=1
+  else
+    printf '  [ok]   .claude/%s -> ../%s resolves\n' "$canon" "$canon"
+  fi
+done
 
 # No persistent central clone should be created or required by the core install.
 if [ -e "$NO_CLONE" ]; then

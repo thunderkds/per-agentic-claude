@@ -5,8 +5,8 @@
 
 # NOTE: .claude/settings.json is deployed by setup.sh as a per-project COPY
 # (projects append their own permissions to it), not listed here.
-.claude/agents
-.claude/skills
+agents
+skills
 .claude/hooks
 templates
 docs/claude-md
