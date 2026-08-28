@@ -218,10 +218,15 @@ Full pasted output for every row is in `tasks/TASK_REVIEW_T096.md`.
 | AC10 — codebase-map regenerated | PASS | `/map-codebase` run; diff is **230 insertions / 89 deletions** across the file — a full regeneration, not a targeted substitution |
 | AC11 — anti-vacuity | PASS | `rm .claude/skills` -> **48 failed**, 659 passed, and `validate.sh` FAIL. Restored -> 707 passed |
 | AC12 — new test pins the symlink | PASS | `.claude/hooks/tests/test_canon_symlinks.py`, **10 new tests**, asserting existence, symlink-not-copy, relative target, and resolution — with `DDR-0006`-shape mutation controls proving each check goes red when violated |
+| AC13 — `update.sh` re-establishes the canon links every run | PASS | `harness_install_canon_symlinks` in `lib/harness-fetch.sh`, called by `update.sh` after the copy. Probes 2 and 3: pre-relocation real dir -> `../skills` + canon content; deleted link -> `../skills`, `../agents` restored, RC=0. Automated: `test_update.sh` tests 7–8 |
+| AC14 — no installer reports success over a stale canon | PASS | Stale real dir is **migrated** (moved to `<link>.bak`, then linked) by both installers — `cmp` proves `.claude/skills/wake/SKILL.md` == `skills/wake/SKILL.md` after. When it cannot migrate (a `.bak` already exists) the run exits **RC=1** and never prints "Update complete" (`test_update.sh` test 9). `setup.sh` test 4 covers the same for install. A regular **file** at the link still exits RC=1 — unchanged by design (Probe 4) |
+| AC15 — a test drives the real upgrade path | PASS | `tests/test_update.sh` test 7: install at the pre-relocation shape, run the REAL `update.sh`, then `cmp .claude/skills/brainstorming/SKILL.md skills/brainstorming/SKILL.md`. Asserts on installer-observable state, never a function return. Suite 20 -> **30 passed**; `test_setup.sh` 15 -> **18 passed**. Mutation control: removing the one call turns **6** of them red |
 
 **Hard-Stop Gate 5** — new test code written as part of this task: `test_canon_symlinks.py`
 (10 tests) plus symlink assertions added to `scripts/validate.sh` and `scripts/smoke-install.sh`;
-suite output pasted above and in the review.
+suite output pasted above and in the review. Stage 5 follow-up added the upgrade-path tests:
+`tests/test_update.sh` tests 7–9 (20 -> 30 passed) and `tests/test_setup.sh` test 4 (15 -> 18
+passed), each driving the real installer end to end.
 
 **UI / Design Evidence rows**: ☐ N/A — pure-infrastructure task, no UI component.
 

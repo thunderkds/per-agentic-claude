@@ -494,3 +494,156 @@ it, so the tests demonstrably discriminate on the thing this task built.
 **Residual risk.** A stock Windows checkout without Developer Mode or `core.symlinks=true`
 materialises the two links as plain text files, and skill discovery fails there. The guide's cut
 list deliberately excludes a copy-fallback as speculation; the limitation is now documented.
+
+---
+
+## Upgrade path (Stage 5 regression)
+
+Stage 4 code-review passed and the **fresh-install** path verified clean. Stage 5 `/verify` then
+drove the REAL installers against a **pre-relocation install** and found a regression this diff
+introduces. The guide was amended with AC13/AC14/AC15 and Success Criteria rows 6 and 7; this
+section is the evidence for those three rows.
+
+### Root cause
+
+Before T096, `MANIFEST` listed `.claude/skills`, so `update.sh` copied the fresh canon exactly where
+Claude Code reads it. After T096, `MANIFEST` lists `skills`/`agents` at plain root and **nothing in
+`update.sh` ever touches `.claude/skills` or `.claude/agents`** — it contains zero `ln -s`.
+`setup.sh` did have `install_canon_symlinks()`, but on finding a real directory there it logged a
+`[warn]` and `continue`d, so the run still reached `Setup complete` with RC=0 over content Claude
+Code would keep reading forever.
+
+The bug is the **RC=0**, not the wording of the warning. An installer that reports success while the
+harness silently serves stale skills is worse than one that fails.
+
+### BEFORE (as observed by `/verify`, verbatim)
+
+```
+# setup.sh over a pre-T096 install (.claude/skills a real dir with stale content)
+[warn]  './.claude/skills' is a real directory from an older install. ...
+setup.sh RC=0                       <-- reports SUCCESS
+$ cat .claude/skills/wake/SKILL.md
+STALE CONTENT FROM OLD INSTALL      <-- what Claude Code now reads, forever
+
+# update.sh on the same install
+[info]  Update complete. Re-recorded ./.claude/harness-lock.json
+update.sh RC=0                      <-- no warning at all
+$ cat .claude/skills/wake/SKILL.md
+STALE CONTENT FROM OLD INSTALL
+
+# update.sh on a CORRECT-shape install with the link deleted
+update.sh RC=0 ; link STILL MISSING
+```
+
+### The fix
+
+`harness_install_canon_symlinks [target]` in `lib/harness-fetch.sh` — the library both installers
+already source, so the link contract lives in exactly one place. Per canon directory:
+
+| State at `.claude/<canon>` | Behavior |
+|---|---|
+| symlink (any target) | removed, replaced with the correct **relative** `../<canon>` link |
+| missing | created |
+| real directory (pre-relocation install) | moved aside to `<link>.bak`, then linked. Content is preserved, never deleted |
+| real directory **and** `<link>.bak` already exists | `return 1` → run exits non-zero, no success message |
+| regular file | left to `ln -s`, which fails; `set -e` exits non-zero. **Unchanged — failing loudly here was already correct and was not "fixed"** |
+
+`update.sh` calls it after the copy and lock rewrite, before `log_info "Update complete"`, so a
+failed migration can never print that line. `setup.sh`'s `install_canon_symlinks()` now delegates to
+it, replacing the warn-and-continue. `detect_symlinks()` is untouched: it inspects MANIFEST paths
+(`skills`, `agents` at plain root, both real dirs), never `.claude/skills`, so the two do not
+collide. The lock/decision model is unchanged.
+
+### AFTER (same probes, re-run against this branch)
+
+```
+=== PROBE 1: setup.sh over a pre-T096 install ===
+[warn]  './.claude/skills' was a real directory from an older install — moved to './.claude/skills.bak' and replaced with a symlink onto './skills'.
+[info]  Setup complete. Harness copied into /tmp/probeA
+setup.sh RC=0
+lrwxrwxrwx 1 ... .claude/skills -> ../skills
+---
+name: wake
+description: "Mandatory cold-start orientatio      <-- the FRESH canon
+--- backup preserved:
+STALE CONTENT FROM OLD INSTALL
+
+=== PROBE 2: update.sh on a pre-T096 install ===
+[warn]  './.claude/skills' was a real directory from an older install — moved to './.claude/skills.bak' and replaced with a symlink onto './skills'.
+[info]  Update complete. Re-recorded ./.claude/harness-lock.json
+update.sh RC=0
+lrwxrwxrwx 1 ... .claude/skills -> ../skills
+cmp: .claude/skills/wake/SKILL.md == skills/wake/SKILL.md
+
+=== PROBE 3: update.sh on a CORRECT-shape install with the link deleted ===
+update.sh RC=0
+readlink: ../skills ../agents
+
+=== PROBE 4: .claude/skills as a regular FILE (must still fail loudly) ===
+setup.sh RC=1
+```
+
+Probe 1/2 RC=0 satisfies AC14: the criterion is *migrate **or** exit non-zero*, and the directory was
+migrated — the content read through `.claude/skills` is now the canon, proven by `cmp`. Probe 4 is
+the deliberately-unchanged case.
+
+### Automated coverage (AC15)
+
+`tests/test_update.sh` tests 7–9 and `tests/test_setup.sh` test 4 drive the **real installers** end
+to end — no function is called directly, and every assertion is on installer-observable state.
+
+```
+PASS: test7: update.sh exited 0 on a pre-T096-shape install
+PASS: test7: .claude/skills is the relative symlink after update
+PASS: test7: .claude/skills/brainstorming/SKILL.md matches the plain-root canon
+PASS: test7: the stale directory was preserved at .claude/skills.bak, not deleted
+PASS: test8: update.sh exited 0 with the canon links missing
+PASS: test8: update.sh re-established both canon symlinks
+PASS: test9: update.sh exits non-zero when a stale canon dir cannot be migrated (rc=1)
+PASS: test9: no 'Update complete' printed over a stale canon
+
+----- summary: 30 passed, 0 failed -----   (was 20)
+
+PASS: test4: setup.sh did not silently succeed over a stale real .claude/skills
+PASS: test4: stale directory migrated — .claude/skills now serves the fresh canon
+PASS: test4: the stale directory was preserved at .claude/skills.bak, not deleted
+
+----- summary: 18 passed, 0 failed -----   (was 15)
+```
+
+Test 7's central assertion is `cmp` of `.claude/skills/brainstorming/SKILL.md` against
+`skills/brainstorming/SKILL.md` — the path Claude Code actually reads, versus the canon.
+
+**Mutation control** (DDR-0006 shape). Removing the single `harness_install_canon_symlinks .` call
+from `update.sh` and re-running the suite:
+
+```
+FAIL: test7: .claude/skills is not '../skills' after update
+FAIL: test7: content read via .claude/skills does not match the canon (stale canon regression)
+FAIL: test7: stale content was not preserved at .claude/skills.bak
+FAIL: test8: canon symlinks still missing after update.sh
+FAIL: test9: update.sh reported success over a stale, unmigratable .claude/skills
+FAIL: test9: printed 'Update complete' over a stale canon
+----- summary: 24 passed, 6 failed -----
+```
+
+The call was restored immediately; the tests are load-bearing, not decorative.
+
+### No regression
+
+```
+python3 -m pytest .claude/hooks/tests/ -q   ->  707 passed in 10.20s
+python3 -m pytest tests/ -q                 ->   40 passed in 0.05s
+bash scripts/validate.sh                    ->  validate.sh: PASS      (RC=0)
+bash scripts/smoke-install.sh               ->  smoke-install.sh: PASS (RC=0)
+readlink .claude/skills                     ->  ../skills
+readlink .claude/agents                     ->  ../agents
+```
+
+### Scope witness
+
+Touched: `lib/harness-fetch.sh`, `update.sh`, `setup.sh`, `tests/test_update.sh`,
+`tests/test_setup.sh`, `docs/claude-md/folder-structure.md`. No `sed`/`xargs`/`find -exec` rewrite
+was run. The relocation and the reference rewrite were not revisited; `tasks/`, `memory/`,
+`reports/`, `docs/ddr`, `docs/adr`, `PROJECT_KANBAN.md` and `BRAINSTORMING_LOG*` are unchanged apart
+from this section appended to this review file.
