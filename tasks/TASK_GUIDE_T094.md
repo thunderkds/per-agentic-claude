@@ -155,7 +155,7 @@ temptation by name: *"Report the real number rather than reframing the criterion
 
 | # | Given (input/state) | Expect (output/behavior) | How it's checked |
 |---|---------------------|--------------------------|------------------|
-| 1 | Full hook suite, current worktree | 694 passed, 0 failed | automated test |
+| 1 | Full hook suite, current worktree | 697 passed, 0 failed (was 694 before this task added 3 tests) | automated test |
 | 2 | A fixture `PROJECT_KANBAN.md` with a populated Done section and an empty Todo and In Progress | Both Kanban tests pass | automated test |
 | 3 | Same fixture, but `find_kanban_section` monkeypatched to its pre-T093 first-match-wins form | The cross-section test fails | automated test (anti-vacuity probe) |
 | 4 | `general-agent-template.md` reverted to HEAD's version | AC7[c-infra] fails at 10,518 | manual probe, output pasted |
@@ -169,7 +169,7 @@ python3 -m pytest tests/test_provider_adapters.py -q && \
 python3 -c "print(len(open('.claude/agents/general-agent-template.md').read()))"
 ```
 
-Expected: `694 passed`, then `11 passed`, then an integer ≤ `3526`.
+Expected: `697 passed`, then `11 passed`, then an integer ≤ `3526`.
 
 ### Evidence (filled by reviewer at Stage 4/5)
 
