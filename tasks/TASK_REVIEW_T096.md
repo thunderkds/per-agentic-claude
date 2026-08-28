@@ -647,3 +647,45 @@ Touched: `lib/harness-fetch.sh`, `update.sh`, `setup.sh`, `tests/test_update.sh`
 was run. The relocation and the reference rewrite were not revisited; `tasks/`, `memory/`,
 `reports/`, `docs/ddr`, `docs/adr`, `PROJECT_KANBAN.md` and `BRAINSTORMING_LOG*` are unchanged apart
 from this section appended to this review file.
+
+---
+
+## Stage 5 — `/verify` (Supervisor, re-run after the fix)
+
+**Verdict: PASS**
+
+The first `/verify` pass returned **FAIL**: it drove the real installers and found that the
+relocation broke the upgrade path — `update.sh` never touched `.claude/{skills,agents}`, so an
+existing install kept reading stale canon while both installers reported RC=0 success. The guide
+was amended with AC13/AC14/AC15 and the fix slice landed in `72c8225`.
+
+Re-running the same probes against the fixed branch, driving the real `setup.sh` / `update.sh`
+CLIs (not tests, not import-and-call):
+
+| # | Probe | Before the fix | After the fix |
+|---|---|---|---|
+| 1 | `update.sh` over a pre-T096 real dir | RC=0, `STALE CONTENT FROM OLD INSTALL` | migrated to `.claude/skills.bak`, link restored, reads fresh canon (`name: wake`) |
+| 2 | `update.sh` with the link deleted | RC=0, link STILL MISSING | RC=0, `link restored: ../skills` |
+| 3 | `setup.sh` over a pre-T096 real dir | RC=0 "Setup complete" over stale content | migrated + linked, serves fresh canon |
+| 4 | `.bak` already exists (cannot migrate) | n/a | **RC=1**, explicit error, existing `.bak` preserved unclobbered |
+| 5 | Regular *file* at the link | RC=1 (correct) | RC=1 — unchanged by design |
+| 6 | `git worktree add` isolation | resolves inside the worktree | unchanged |
+| 7 | Absolute target | `validate.sh` RC=1 with a precise message | unchanged |
+
+Non-destructive migration is the right call: the stale directory is moved to `<link>.bak`, never
+deleted, and a `.bak` collision hard-fails rather than clobbering a previous rescue.
+
+**Suite state at merge:**
+
+```
+python3 -m pytest .claude/hooks/tests/ -q   ->  707 passed
+python3 -m pytest tests/ -q                 ->   40 passed
+bash tests/test_update.sh                   ->   30 passed, 0 failed
+bash tests/test_setup.sh                    ->   18 passed, 0 failed
+bash scripts/validate.sh                    ->  exit 0
+bash scripts/smoke-install.sh               ->  exit 0
+readlink .claude/skills .claude/agents      ->  ../skills, ../agents
+```
+
+Anti-vacuity confirmed twice: deleting `.claude/skills` turns 3 tests red (AC11); removing the
+single `harness_install_canon_symlinks` call turns 6 upgrade tests red (AC15).
