@@ -64,6 +64,11 @@ Counted 2026-08-27, `.claude/skills` + `.claude/agents` references across the re
 | **Live surface** | **225** | **49** | rewrite |
 | **Historical audit trail** | **1,764** | — | **must not be touched** |
 
+> **Correction (Stage 4, T096).** The 1,764 figure was measured against a different tree state
+> and is stale. The real BEFORE count on this branch is **909**. AC4's *intent* — the historical
+> trail is unchanged by the move — is unaffected and was verified against 909. See defect **D2** in
+> `tasks/TASK_REVIEW_T096.md` for the per-directory breakdown.
+
 The historical class is `memory/` (1013), `tasks/` (707), `PROJECT_KANBAN.md` (22), `reports/` (18),
 `docs/ddr/` + `docs/adr/` (4), and every `BRAINSTORMING_LOG_*.md` (3). Those references record what
 was true *at the time they were written*. Rewriting them falsifies the record this project runs on.
@@ -140,7 +145,7 @@ a changed count means the scope changed.
 | 1 | `skills/` and `agents/` exist at plain root, containing all 30 skills and 5 agent guides; `git log --follow` on a moved file still shows its pre-move history (i.e. moved with `git mv`, not delete+add) | Decision |
 | 2 | `.claude/skills` and `.claude/agents` are **symlinks** to `../skills` and `../agents`, committed, and **relative** — `readlink` returns a path with no leading `/` | Decision + Out of scope |
 | 3 | This repo can still run its own skills: `Skill({ skill: "wake" })` resolves and executes after the move | "keeping this repo able to run its own skills" |
-| 4 | The historical reference count is **unchanged at 1,764**, verified by re-running the count command after the move. Any other number is a failure, including a lower one | The prohibition |
+| 4 | The historical reference count is **unchanged at 909** (the guide's original 1,764 is stale — see the Correction above), verified by re-running the count command after the move. Any other number is a failure, including a lower one | The prohibition |
 | 5 | The live reference count is **0** — no file in the 49-file list still refers to `.claude/skills` or `.claude/agents` except as an intentional mention of the symlink itself | Live surface |
 | 6 | `python3 -m pytest .claude/hooks/tests/ -q` ≥ 697 passed, `python3 -m pytest tests/ -q` 40 passed, `bash scripts/validate.sh` exits 0 | no regression |
 | 7 | The symlink survives a **fresh clone**: `git clone` the repo to a temp dir, and `.claude/skills/wake/SKILL.md` is readable there | Adversarial review |
@@ -250,7 +255,7 @@ from damaging something.
 4. Rewrite the 49 live files, **file by file from the enumerated list**, never by pattern across the
    repo. Commit in coherent groups (hooks, tests, scripts, docs) rather than one 49-file commit — a
    reviewer cannot check 225 substitutions in a single diff.
-5. Re-run the historical count. It must read 1,764. If it moved, `git reset` and find out why before
+5. Re-run the historical count. It must read 909 (not the stale 1,764 — see the Correction above). If it moved, `git reset` and find out why before
    doing anything else.
 6. Regenerate `memory/codebase-map.md` via `/map-codebase`.
 7. Full verification command.
