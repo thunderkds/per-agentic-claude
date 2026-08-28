@@ -15,12 +15,12 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-TEMPLATE = ".claude/agents/general-agent-template.md"
+TEMPLATE = "agents/general-agent-template.md"
 ROLES = {
-    "c-infra": ".claude/agents/common-infrastructure.md",
-    "backend": ".claude/agents/backend.md",
-    "frontend": ".claude/agents/frontend.md",
-    "qa": ".claude/agents/qa.md",
+    "c-infra": "agents/common-infrastructure.md",
+    "backend": "agents/backend.md",
+    "frontend": "agents/frontend.md",
+    "qa": "agents/qa.md",
 }
 
 

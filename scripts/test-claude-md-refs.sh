@@ -5,9 +5,9 @@
 # stayed within the agreed scope bounds. Checks (AC numbers from
 # tasks/TASK_GUIDE_T039.md):
 #   AC1 — `## Skills vs Agents` section is <=30 lines (was 72)
-#   AC2 — every `Skill({ skill: "X" })` ref resolves to .claude/skills/X/SKILL.md or a
+#   AC2 — every `Skill({ skill: "X" })` ref resolves to skills/X/SKILL.md or a
 #         documented built-in
-#   AC3 — every `subagent_type` value resolves to a `.claude/agents/*.md` whose `name:`
+#   AC3 — every `subagent_type` value resolves to a `agents/*.md` whose `name:`
 #         field matches
 #
 # AC4 (the four preserved "keep" items) is intentionally NOT automated here — it asserts the
@@ -54,7 +54,7 @@ if [ ! -f "$CLAUDE_MD" ]; then
   exit 1
 fi
 
-# Documented built-in skills — not backed by a .claude/skills/<name>/SKILL.md file,
+# Documented built-in skills — not backed by a skills/<name>/SKILL.md file,
 # but named explicitly in CLAUDE.md's "Built-in Claude Code skills" table.
 BUILTINS="security-review verify run update-config fewer-permission-prompts"
 
@@ -73,7 +73,7 @@ else
     for b in $BUILTINS; do
       [ "$name" = "$b" ] && is_builtin=1 && break
     done
-    if [ "$is_builtin" -eq 0 ] && [ ! -f "$ROOT/.claude/skills/$name/SKILL.md" ]; then
+    if [ "$is_builtin" -eq 0 ] && [ ! -f "$ROOT/skills/$name/SKILL.md" ]; then
       bad_skill_refs="$bad_skill_refs $name"
     fi
   done
@@ -86,9 +86,9 @@ fi
 
 # --- AC3: every subagent_type value (project sub-agent table rows) resolves --------
 # Real subagent_type values live in table rows shaped:
-#   | Role | `subagent_type-value` | `.claude/agents/<file>.md` |
-# Extract the subagent_type cell from any row that also names a .claude/agents/ path.
-type_refs="$(grep -E '^\|.*\| *`[a-zA-Z0-9_-]+` *\| *`\.claude/agents/[a-zA-Z0-9_-]+\.md` *\|' "$CLAUDE_MD" \
+#   | Role | `subagent_type-value` | `agents/<file>.md` |
+# Extract the subagent_type cell from any row that also names an agents/ path.
+type_refs="$(grep -E '^\|.*\| *`[a-zA-Z0-9_-]+` *\| *`agents/[a-zA-Z0-9_-]+\.md` *\|' "$CLAUDE_MD" \
   | sed -E 's/^\|[^|]*\| *`([a-zA-Z0-9_-]+)` *\|.*/\1/' \
   | sort -u)"
 if [ -z "$type_refs" ]; then
@@ -97,7 +97,7 @@ else
   bad_type_refs=""
   for name in $type_refs; do
     found=0
-    for f in "$ROOT"/.claude/agents/*.md; do
+    for f in "$ROOT"/agents/*.md; do
       [ -f "$f" ] || continue
       if grep -qE "^name: ${name}\$" "$f" 2>/dev/null; then
         found=1
