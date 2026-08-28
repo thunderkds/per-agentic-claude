@@ -8,7 +8,25 @@
 ## Board
 
 ### Todo
-- [ ] **T097** — (B2): Per-harness install projection, `setup.sh --harness`, and the `AGENTS.md` correction that unblocks Codex | Common-Infrastructure-Agent | C2 | Risk: Medium | P1
+
+> **Session handoff — 2026-08-28.** T096 merged (`cb0078f`); its worktree is removed and the board,
+> memory, and evidence are all committed. v2 is clean and green: 707 hook tests, 40 tests, 30 update
+> tests, 18 setup tests, `validate.sh` and `smoke-install.sh` all exit 0; `.claude/skills -> ../skills`,
+> `.claude/agents -> ../agents`.
+>
+> **Two process lessons from today, both already in `memory/learnings.md` — apply them before the next spawn:**
+> 1. **Commit the guide and everything its Requirement Refs cite before spawning.** Untracked files do
+>    not reach a worktree. T095/T097 guides are now tracked (`13ba24d`), so this is handled.
+> 2. **Launch with `setsid`**, or the harness kills the agent at exit 129 when the launching Bash call
+>    returns. `--permission-mode acceptEdits` covers file edits only, never Bash — judge "working" by
+>    CPU time, not elapsed time.
+>
+> **T095 (P0) is still deferred and still actively obstructing.** All three of its defects fired during
+> the T096 session: the merge gate could not see evidence created in a worktree (worked around by
+> landing evidence on v2 first, twice), and it blocked a write whose *data* merely contained the string
+> `git push`. Worth doing before or alongside T097.
+
+- [ ] **T097** — (B2): Per-harness install projection, `setup.sh --harness`, and the `AGENTS.md` correction that unblocks Codex | Common-Infrastructure-Agent | C2 | Risk: Medium | P1 | Guide: `tasks/TASK_GUIDE_T097.md` (tracked 2026-08-28) | **Dependency T096 is MERGED — T097 is unblocked.** | **Re-read the guide against the merged tree before spawning:** T096 shipped `harness_install_canon_symlinks` in `lib/harness-fetch.sh`, called by both `setup.sh` and `update.sh`, so part of what T097 assumed it would build now exists. Scope shifts toward `--harness <name>` projection + the `AGENTS.md` Codex correction. Amend the ACs if they no longer match, the way T096's AC4/AC13-15 were amended. | **AC3 prerequisite verified 2026-08-28:** `codex-cli 0.149.1` is on PATH at `~/.local/bin/codex`, so the required real-session transcript is obtainable — AC3 is satisfiable, not BLOCKED. Remember the 8 KB skill-body cap: on an oversize skill, fail loudly, never truncate. | Do NOT repurpose `install_abs` (`setup.sh`) — the guide forbids it.
 - [ ] **T095** — The merge gate cannot see evidence created in a worktree, prescribes a remedy the project disproved, and blocks writes whose *data* mentions a push | Common-Infrastructure-Agent | C2 | Risk: Medium | P0
 
 ### In Progress
