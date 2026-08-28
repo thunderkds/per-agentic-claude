@@ -21,10 +21,10 @@ REFERENCE_PATH = os.path.join(REPO_ROOT, "docs", "claude-md", "untrusted-content
 ENTRY_POINT_STRING = "untrusted-content-boundary"
 
 WIRING_FILES = {
-    "general-agent-template": os.path.join(REPO_ROOT, ".claude", "agents", "general-agent-template.md"),
+    "general-agent-template": os.path.join(REPO_ROOT, "agents", "general-agent-template.md"),
     "CLAUDE.md": os.path.join(REPO_ROOT, "CLAUDE.md"),
-    "resolve-pr-feedback": os.path.join(REPO_ROOT, ".claude", "skills", "resolve-pr-feedback", "SKILL.md"),
-    "brainstorming": os.path.join(REPO_ROOT, ".claude", "skills", "brainstorming", "SKILL.md"),
+    "resolve-pr-feedback": os.path.join(REPO_ROOT, "skills", "resolve-pr-feedback", "SKILL.md"),
+    "brainstorming": os.path.join(REPO_ROOT, "skills", "brainstorming", "SKILL.md"),
     "README.md": os.path.join(REPO_ROOT, "README.md"),
 }
 

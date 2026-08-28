@@ -16,8 +16,8 @@ import re
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SITE_PAGE = os.path.join(ROOT, "site", "index.html")
-AGENTS_DIR = os.path.join(ROOT, ".claude", "agents")
-SKILLS_DIR = os.path.join(ROOT, ".claude", "skills")
+AGENTS_DIR = os.path.join(ROOT, "agents")
+SKILLS_DIR = os.path.join(ROOT, "skills")
 SETTINGS_PATH = os.path.join(ROOT, ".claude", "settings.json")
 STEP_LIMIT_HOOK = os.path.join(ROOT, ".claude", "hooks", "pre_agent_step_limit.py")
 

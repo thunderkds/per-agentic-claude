@@ -18,7 +18,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CLAUDE_MD = os.path.join(ROOT, "CLAUDE.md")
 AGENTS_MD = os.path.join(ROOT, "AGENTS.md")
 CURSOR_MDC = os.path.join(ROOT, ".cursor", "rules", "agent-base.mdc")
-TEMPLATE_MD = os.path.join(ROOT, ".claude", "agents", "general-agent-template.md")
+TEMPLATE_MD = os.path.join(ROOT, "agents", "general-agent-template.md")
 MULTI_AGENT_DOC = "docs/claude-md/"
 
 ADAPTERS = {"AGENTS.md": AGENTS_MD, ".cursor/rules/agent-base.mdc": CURSOR_MDC}

@@ -41,7 +41,7 @@ import pytest
 
 HOOKS_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REPO_ROOT = os.path.dirname(os.path.dirname(HOOKS_DIR))
-SKILLS_DIR = os.path.join(REPO_ROOT, ".claude", "skills")
+SKILLS_DIR = os.path.join(REPO_ROOT, "skills")
 
 # A relative link may sit at the skill root or one directory below it. One
 # separator is the whole rule; named so a mutation to it is a single edit.

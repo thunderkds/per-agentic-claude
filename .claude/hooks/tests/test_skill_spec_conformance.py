@@ -43,7 +43,7 @@ import pytest
 
 HOOKS_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REPO_ROOT = os.path.dirname(os.path.dirname(HOOKS_DIR))
-SKILLS_DIR = os.path.join(REPO_ROOT, ".claude", "skills")
+SKILLS_DIR = os.path.join(REPO_ROOT, "skills")
 
 # Spec constants. Named rather than inlined so a mutation to any one of them is
 # a single visible edit.

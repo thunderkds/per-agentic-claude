@@ -16,7 +16,7 @@ import os
 import re
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-SKILL_MD = os.path.join(ROOT, ".claude", "skills", "craft-spawn-prompt", "SKILL.md")
+SKILL_MD = os.path.join(ROOT, "skills", "craft-spawn-prompt", "SKILL.md")
 DDR_GLOB = os.path.join(ROOT, "docs", "ddr", "0004-*.md")
 
 BANNED_WORDS = ["budget", "target", "limit", "at most", "should be under"]
