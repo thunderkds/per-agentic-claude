@@ -190,15 +190,41 @@ readlink .claude/skills && readlink .claude/agents
 
 Expected: `≥697 passed`, `40 passed`, exit 0, then `../skills` and `../agents`.
 
-### Evidence (filled by reviewer at Stage 4/5)
+### Evidence
 
-> Filled by the reviewer at Stage 4/5 in `tasks/TASK_REVIEW_T096.md`.
+Full pasted output for every row is in `tasks/TASK_REVIEW_T096.md`.
+
+| Row | Result | Evidence |
+|---|---|---|
+| AC1 — canon at plain root, history follows | PASS | 30 skills / 5 agents at `skills/`, `agents/`; move commit `2cbfa99` records **39 renames**, 0 delete+add; `git log --follow -- agents/qa.md` reaches `b4582e5 Create qa.md` |
+| AC2 — committed **relative** symlinks | PASS | `git ls-files -s` shows mode `120000` for both; `readlink` -> `../skills`, `../agents` |
+| AC3 — repo still runs its own skills | PASS | `/map-codebase` was invoked and executed through `.claude/skills` during this task (AC10); the skill roster reloads from the symlink |
+| AC4 — historical trail unchanged | PASS | `git diff --name-only 695f5d8 HEAD -- tasks/ memory/ reports/ docs/ddr docs/adr PROJECT_KANBAN.md 'BRAINSTORMING_LOG*.md'` returns **only** `tasks/TASK_REVIEW_T096.md`, this task's own new file. Raw count 909 -> 953 is fully accounted for: +23 in that new file, +19 in gitignored `memory/event-trace/`. Per-directory tracked counts identical. **The guide's 1,764 is stale — see defect D2.** |
+| AC5 — live reference count 0 | PASS | 225 -> 0 functional refs. 29 textual occurrences remain, itemized and justified in the review; 4 of them are `setup.sh`'s `install_pack()` targets, which the guide places out of scope |
+| AC6 — no regression | PASS | `.claude/hooks/tests/` **707 passed** (697 baseline + 10 new); `tests/` **40 passed**; `scripts/validate.sh` exit 0 |
+| AC7 — survives fresh clone | PASS | clone of the branch: `.claude/skills -> ../skills`, `wake/SKILL.md` readable, `realpath` resolves inside the clone |
+| AC8 — survives `git worktree add` | PASS | throwaway worktree: `realpath` -> `<worktree>/skills/wake/SKILL.md`, **not** the main checkout. Probe worktree + branch removed |
+| AC9 — MANIFEST + smoke-install | PASS | MANIFEST lists `agents`, `skills`; `scripts/smoke-install.sh` -> `PASS`, asserting both plain-root canon and both resolved symlinks after a real install |
+| AC10 — codebase-map regenerated | PASS | `/map-codebase` run; diff is **230 insertions / 89 deletions** across the file — a full regeneration, not a targeted substitution |
+| AC11 — anti-vacuity | PASS | `rm .claude/skills` -> **48 failed**, 659 passed, and `validate.sh` FAIL. Restored -> 707 passed |
+| AC12 — new test pins the symlink | PASS | `.claude/hooks/tests/test_canon_symlinks.py`, **10 new tests**, asserting existence, symlink-not-copy, relative target, and resolution — with `DDR-0006`-shape mutation controls proving each check goes red when violated |
+
+**Hard-Stop Gate 5** — new test code written as part of this task: `test_canon_symlinks.py`
+(10 tests) plus symlink assertions added to `scripts/validate.sh` and `scripts/smoke-install.sh`;
+suite output pasted above and in the review.
+
+**UI / Design Evidence rows**: ☐ N/A — pure-infrastructure task, no UI component.
+
+**Scope additions found during implementation** (both recorded in the review's DELTA):
+15 further live references in 8 files that build the path via `os.path.join(ROOT, ".claude", ...)`
+and so never matched the guide's derivation command; and `install_canon_symlinks()` in `setup.sh`,
+without which a downstream install would have no `.claude/skills` at all.
 
 ---
 
 ## Demonstration
 
-> See `tasks/TASK_REVIEW_T096.md`.
+> BEFORE / AFTER / DELTA / WITNESS: see `tasks/TASK_REVIEW_T096.md`.
 
 ---
 

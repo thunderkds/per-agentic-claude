@@ -181,12 +181,316 @@ exit=0
 
 ## AFTER
 
-> Filled at completion.
+### Canon relocated, `.claude/` entries are relative symlinks
+
+```
+$ git ls-files -s .claude/skills .claude/agents
+120000 fd65c790eeaf1ea0b802c5ab6d79e184eba08636 0	.claude/agents
+120000 42c5394a18a882778ebf50eb940fb5a96bc4a6d9 0	.claude/skills
+
+$ readlink .claude/skills && readlink .claude/agents
+../skills
+../agents
+
+$ ls skills | wc -l && ls agents | wc -l
+30
+5
+```
+
+Mode `120000` is git's symlink mode — the links are committed, not gitignored working-tree
+artifacts, so a clone reproduces them (AC2).
+
+### AC1 — history followed the move
+
+The relocation commit records 39 pure renames (`R`), zero delete+add pairs:
+
+```
+$ git show --format= --name-status --find-renames 2cbfa99 | grep -c '^R'
+39
+
+$ git log --follow --oneline -- skills/wake/SKILL.md | tail -1
+9acd3ad feat: add wake skill — mandatory session-start orientation briefing
+
+$ git log --follow --oneline -- agents/qa.md | tail -1
+b4582e5 Create qa.md
+```
+
+Pre-move history is intact on the post-move paths.
+
+### AC4 — historical audit trail untouched
+
+The raw count reads 953 against a BEFORE of 909. Both deltas are accounted for, and neither is a
+rewritten historical file:
+
+| Source of the +44 | Refs | Tracked? |
+|---|---|---|
+| `tasks/TASK_REVIEW_T096.md` — this file, authored by this task | 23 | yes (new file) |
+| `memory/event-trace/_untagged.jsonl` — hook telemetry that logged this session, 4 -> 23 | +19 | **no — gitignored** |
+
+The decisive check is not the count but the diff. No pre-existing historical file was modified:
+
+```
+$ git diff --name-only 695f5d8 HEAD -- tasks/ memory/ reports/ docs/ddr docs/adr \
+    PROJECT_KANBAN.md 'BRAINSTORMING_LOG*.md'
+tasks/TASK_REVIEW_T096.md
+```
+
+Per-directory, excluding this task's own new file and the gitignored trace:
+
+| Directory | BEFORE | AFTER |
+|---|---|---|
+| `tasks/` | 736 | 736 |
+| `memory/` (excl. `event-trace/`) | 124 | 124 |
+| `PROJECT_KANBAN.md` | 22 | 22 |
+| `docs/ddr/` + `docs/adr/` | 4 | 4 |
+| `BRAINSTORMING_LOG_*.md` | 21 | 21 |
+| `reports/` | 0 | 0 |
+
+`memory/codebase-map.md` is the guide's declared exception and was regenerated, not hand-edited
+(AC10 below).
+
+### AC5 — live surface
+
+225 references rewritten to 0 functional references. 29 textual occurrences remain, every one
+deliberate:
+
+| Category | Refs | Why it stays |
+|---|---|---|
+| `tests/canon_paths.py` — the pre-move path map + its docstring | 4 | must name the old path to resolve baselines at pre-move refs |
+| `RETIRED_CLAUSE` in `test_complexity_matrix_pointers.py` | 1 | greps the audit trail at a pre-move ref; repointing it would match nothing and pass vacuously |
+| Byte-pin repointing comments (`test_agent_guide_dedup.py`, `test_vital_slice.py`) | 4 | describe what changed and when |
+| `test_canon_symlinks.py` docstring | 3 | the tests are *about* the symlink |
+| `docs/claude-md/folder-structure.md` | 4 | documents the symlink arrangement |
+| `scripts/smoke-install.sh` | 2 | asserts the symlink exists downstream |
+| `CLAUDE.md` | 2 | names the symlink as load-bearing |
+| `setup.sh` — `install_canon_symlinks()` comment | 1 | creates the symlink |
+| `setup.sh` — `install_pack()` targets | 4 | **out of scope per the guide**; see DELTA |
+
+Beyond the guide's 49 files, **15 further live references in 8 files** were found and rewritten
+(see DELTA).
+
+### AC6 / verification command
+
+```
+$ python3 -m pytest .claude/hooks/tests/ -q
+707 passed in 9.70s
+
+$ python3 -m pytest tests/ -q
+40 passed in 0.05s
+
+$ bash scripts/validate.sh   # exit 0, incl. new symlink section
+== Claude harness symlinks (.claude/{skills,agents} -> ../{skills,agents}) ==
+  [ok]   .claude/skills -> ../skills
+  [ok]   .claude/agents -> ../agents
+validate.sh: PASS
+
+$ readlink .claude/skills && readlink .claude/agents
+../skills
+../agents
+```
+
+707 = the 697 baseline + 10 new tests. Nothing was removed to get to green.
+
+### AC7 — fresh clone
+
+```
+$ git clone --branch feat/t096-canon-plain-root . /tmp/.../clone
+$ ls -l /tmp/.../clone/.claude/
+.claude/agents -> ../agents
+.claude/skills -> ../skills
+
+$ head -2 /tmp/.../clone/.claude/skills/wake/SKILL.md
+---
+name: wake
+
+$ python3 -c "import os;print(os.path.realpath('/tmp/.../clone/.claude/skills/wake/SKILL.md'))"
+/tmp/.../clone/skills/wake/SKILL.md
+```
+
+Readable, and resolving **inside the clone** rather than back into this worktree.
+
+### AC8 — `git worktree add`
+
+```
+$ git worktree add -b t096-throwaway-probe /tmp/.../wt HEAD
+$ ls -l /tmp/.../wt/.claude/skills
+.claude/skills -> ../skills
+
+$ python3 -c "import os;print(os.path.realpath('/tmp/.../wt/.claude/skills/wake/SKILL.md'))"
+/tmp/.../wt/skills/wake/SKILL.md
+
+$ head -2 /tmp/.../wt/.claude/agents/qa.md
+---
+name: qa-expert
+```
+
+Resolves within the worktree. This is the property an absolute symlink target would have broken,
+and the reason the guide forbids one: a sub-agent would otherwise read canon from the main
+checkout, outside its isolation boundary. Probe worktree and branch were removed afterwards.
+
+### AC9 — `MANIFEST` + `smoke-install.sh`
+
+`MANIFEST` now lists `agents` and `skills`. A real end-to-end install:
+
+```
+$ bash scripts/smoke-install.sh
+  [ok]   agents
+  [ok]   skills
+  [ok]   .claude/agents
+  [ok]   .claude/skills
+  ...
+  [ok]   .claude/skills -> ../skills resolves
+  [ok]   .claude/agents -> ../agents resolves
+  [ok]   no central-clone directory created by the core install
+smoke-install.sh: PASS
+```
+
+### AC10 — `memory/codebase-map.md` regenerated
+
+```
+$ git diff --stat memory/codebase-map.md
+ memory/codebase-map.md | 319 +++++++++++++++++++-----------
+ 1 file changed, 230 insertions(+), 89 deletions(-)
+```
+
+230 insertions against 89 deletions across the whole file: a full `/map-codebase` regeneration,
+not a targeted path substitution (which would have shown a handful of one-line changes). The
+`.claude/agents` strings still present in it are the symlink entries in the tree section and
+git-history hotspot paths — both correct regenerated output.
+
+### AC11 — anti-vacuity: the symlink is load-bearing
+
+```
+$ rm .claude/skills
+$ python3 -m pytest .claude/hooks/tests/ -q
+48 failed, 659 passed in 9.92s
+
+$ ln -s ../skills .claude/skills
+$ python3 -m pytest .claude/hooks/tests/ -q
+707 passed in 9.77s
+```
+
+`scripts/validate.sh` also fails loudly:
+
+```
+  [FAIL] .claude/skills is not a symlink (canon lives at ./skills; .claude must link to it)
+validate.sh: FAIL
+```
+
+Deleting the link turns 48 tests red. It is not decorative.
+
+### AC12 — a new test pins the symlink
+
+`.claude/hooks/tests/test_canon_symlinks.py`, 10 tests, asserting the links exist, are symlinks
+rather than copies, resolve onto real canon content, and target a **relative** `../path`. It ships
+mutation controls (the `DDR-0006` / `test_provider_adapters.py` shape the guide points at) that
+rebuild the layout in a tmpdir and prove each assertion goes red when the link is deleted,
+replaced by a copy, or given an absolute target — so the checks cannot pass vacuously.
+
+---
 
 ## DELTA
 
-> Filled at completion.
+| # | Change | Why |
+|---|---|---|
+| 1 | `.claude/skills/` -> `skills/`, `.claude/agents/` -> `agents/` via `git mv` (39 renames) | the vital slice |
+| 2 | `.claude/skills`, `.claude/agents` re-created as committed relative symlinks | Claude Code only discovers canon under `.claude/` |
+| 3 | 225 live references rewritten across the guide's 49 files, file by file | no repo-wide `sed`/`xargs`/`find -exec` was used at any point |
+| 4 | **+15 references in 8 files beyond the guide's list** | see below |
+| 5 | `setup.sh` gains `install_canon_symlinks()` | see below |
+| 6 | `.claude/hooks/tests/canon_paths.py` (new) | see below |
+| 7 | Three byte-pins repointed | see below |
+| 8 | `test_canon_symlinks.py` (new, 10 tests) + symlink assertions in `validate.sh` and `smoke-install.sh` | AC11/AC12 |
+| 9 | `memory/codebase-map.md` regenerated | AC10 |
+
+### 4 — references the guide's derivation command could not see
+
+Eight files build the path as `os.path.join(ROOT, ".claude", "skills", ...)` rather than the
+literal `".claude/skills"`, so they never matched the guide's grep and were absent from its
+49-file list:
+
+```
+.claude/hooks/tests/test_skill_spec_conformance.py   .claude/hooks/tests/test_guide_sections.py
+.claude/hooks/tests/test_skill_reference_pointers.py .claude/hooks/tests/test_delivery_report_render.py
+.claude/hooks/tests/test_spawn_prompt_cache_note.py  .claude/hooks/tests/test_untrusted_content_boundary.py
+tests/test_provider_adapters.py                      tests/test_site_content.py
+```
+
+They resolved through the new symlink and so were never red — which is precisely why they had to
+be hunted deliberately. Worth recording: **a repo-wide pattern rewrite would have missed these
+too**, and would have left the live surface quietly half-migrated while looking complete.
+
+### 5 — `install_canon_symlinks()` in `setup.sh`
+
+Moving `MANIFEST` to plain root means a downstream install copies `skills/` and `agents/` to the
+target root and creates no `.claude/skills` at all — Claude Code would stop discovering the kit
+after install. `install_canon_symlinks()` re-creates both relative links post-copy.
+
+It runs **before** `install_pack()`, which means pack writes to `./.claude/agents/<name>.md`
+resolve through the link into `agents/`. `install_pack()` itself is therefore untouched, honouring
+the guide's "`packs/` and `install_pack()` out of scope" rule while keeping pack behaviour correct.
+Those 4 references are the only live ones left that are not symlink mentions.
+
+### 6 — `canon_paths.py`
+
+Several suites byte-pin files by reading them at a historical ref via `git show <ref>:<path>`.
+Those refs predate the move, so the file exists there only under its old `.claude/`-prefixed name
+and `git show` fails on the new one — this broke 18 tests. `canon_paths.read_at()` tries the
+current path and falls back to the pre-move path. It keys on *whether the path exists at that ref*
+rather than on commit ancestry, so a later rebase cannot silently break it.
+
+### 7 — the three byte-pins
+
+`CLAUDE.md`, `MANIFEST` and `scripts/test-agent-template.sh` are pinned byte-identical to
+baselines set by T070/T082/T090/T071 — scope fences proving *those* tasks did not touch these
+files. T096 necessarily edits all three. Each pin was repointed to T096's edit commit with the
+reason recorded inline, following the precedent T082 and T090 already set in the same file. The
+pins remain live and will still fail on any later unexplained edit. They were not deleted or
+weakened.
+
+### Not done, and why
+
+- **`DDR-0007` was not written.** It does not exist (defect D1). Authoring the decision record
+  this task supposedly implements is not this task's scope; flagged for the Supervisor.
+- **`README.md` Windows-limitation note.** The Approach cut list says to document that committed
+  symlinks do not materialise on a stock Windows checkout. `README.md` is not in the live-surface
+  file list and has no reference to rewrite; the limitation is documented in
+  `docs/claude-md/folder-structure.md` instead, where the symlink contract now lives. Flagging
+  rather than silently expanding scope to `README.md`.
+- **`AGENTS.md` content correction, `.codex/`, `--harness`** — explicitly `T097`.
+
+---
 
 ## WITNESS
 
-> Filled at completion.
+**Commits on `feat/t096-canon-plain-root`** (8, in dependency order; the repo is runnable at each):
+
+```
+beec8cb docs(T096): capture BEFORE state and guide defects D1/D2
+2cbfa99 refactor(T096): relocate canon to plain root; .claude/{skills,agents} become relative symlinks
+ffa6712 refactor(T096): point install machinery at plain-root canon
+9e9419a refactor(T096): rewrite scripts/ references to plain-root canon
+8f8cc47 refactor(T096): rewrite the live surface onto the plain-root canon
+56d2df3 test(T096): repoint the three byte-pins the relocation necessarily breaks
+7060c13 refactor(T096): repoint split-string canon paths the guide's grep missed
+5a27a96 docs(T096): regenerate memory/codebase-map.md via /map-codebase
+```
+
+**Method witness.** No `sed -i`, `xargs`, or `find -exec` rewrite was run against the repo at any
+point. Every substitution was made file by file against an explicitly enumerated list, each with
+an asserted match count so a silent no-op or over-match would raise. Two corruptions were caught
+by that discipline and would have shipped under a pattern rewrite:
+
+1. `scripts/test-claude-md-refs.sh` — replacing `.claude/agents/` inside the escaped regex
+   `` `\.claude/agents/...` `` left `` `gents/ ``, a broken pattern that would have matched no
+   CLAUDE.md table row. The test would still have passed its own `-z` guard only by accident.
+2. `test_complexity_matrix_pointers.py` `RETIRED_CLAUSE` — a constant that is grepped *against the
+   audit trail at a pre-move ref*. Rewriting it made the grep match nothing; the test caught it,
+   but a pattern rewrite plus a green suite would have hidden it.
+
+**Anti-vacuity witness.** The suite is green at 707 with the symlink present and 48-red without
+it, so the tests demonstrably discriminate on the thing this task built.
+
+**Residual risk.** A stock Windows checkout without Developer Mode or `core.symlinks=true`
+materialises the two links as plain text files, and skill discovery fails there. The guide's cut
+list deliberately excludes a copy-fallback as speculation; the limitation is now documented.
