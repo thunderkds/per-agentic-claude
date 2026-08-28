@@ -154,6 +154,9 @@ a changed count means the scope changed.
 | 10 | `memory/codebase-map.md` is regenerated via `/map-codebase`, not hand-edited — its diff shows a full regeneration, not a targeted path substitution | The prohibition's exception |
 | 11 | Negative / anti-vacuity: with `.claude/skills` deleted (symlink removed), at least one test in the suite goes red — proving the symlink is load-bearing and not decorative | anti-vacuity |
 | 12 | At least one new automated test asserts AC2 (the symlink exists and is relative) so a future change cannot silently replace it with a copy | Hard-Stop Gate 5 |
+| 13 | `update.sh` re-establishes the canon symlinks on every run. Given an install where `.claude/skills` is missing, a stale real directory, or a non-relative link, `update.sh` leaves it as the correct relative symlink onto the plain-root canon | Stage 5 verify (regression) |
+| 14 | Neither installer ever reports success over a stale canon. Given `.claude/{skills,agents}` as a **real directory** from a pre-T096 install, `setup.sh` and `update.sh` either migrate it or exit **non-zero** — a `RC=0` "Setup complete" / "Update complete" over content Claude Code cannot see is a failure | Stage 5 verify (regression) |
+| 15 | A test drives the real upgrade path, not the function: install at the pre-T096 shape, run `update.sh`, and assert the content readable at `.claude/skills/wake/SKILL.md` matches the canon at `skills/wake/SKILL.md` | Hard-Stop Gate 5 + anti-vacuity |
 
 ---
 
@@ -164,7 +167,9 @@ a changed count means the scope changed.
 | # | Given (input/state) | Expect (output/behavior) | How it's checked |
 |---|---------------------|--------------------------|------------------|
 | 1 | Live-surface derivation re-run before starting | 49 files, 225 refs — matching this guide. A different count halts the task | manual probe, output pasted |
-| 2 | Historical count re-run after the move | 1,764 — identical to before | manual probe, both numbers pasted |
+| 2 | Historical count re-run after the move | 909 — identical to before (the 1,764 in this row was stale; see the Correction above) | manual probe, both numbers pasted |
+| 6 | Pre-T096-shape install (`.claude/skills` a real dir holding stale content), then `update.sh` | `.claude/skills/wake/SKILL.md` reads the fresh canon, OR the run exits non-zero. Never RC=0 over stale content | automated test + manual probe, output pasted |
+| 7 | Correct-shape install with `.claude/skills` deleted, then `update.sh` | the relative symlink is restored | automated test |
 | 3 | `readlink .claude/skills` | `../skills` (relative) | automated test |
 | 4 | Fresh `git clone` into a temp dir | `.claude/skills/wake/SKILL.md` readable | manual probe, output pasted |
 | 5 | Throwaway `git worktree add` | `.claude/skills/wake/SKILL.md` resolves within the worktree | manual probe, output pasted |
