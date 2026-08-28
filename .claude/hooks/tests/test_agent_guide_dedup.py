@@ -48,7 +48,12 @@ BASELINE_REF = "8fc4dd2"
 # MANIFEST's own unfixed state and comparing against it is red by construction. `360fc36` is T090's
 # MANIFEST edit commit. `BASELINE_REF` itself is left unchanged for CLAUDE.md's other AC5/AC7/AC9
 # uses below, which T090 does not touch.
-MANIFEST_BASELINE_REF = "360fc36"
+# REPOINTED AGAIN by T096 (`360fc36` -> `8f8cc47`): T096 relocates the canon to plain root, so
+# MANIFEST's `.claude/agents` / `.claude/skills` entries become `agents` / `skills`. That is the
+# task's whole point (AC9 in TASK_GUIDE_T096.md), not drift — `360fc36` is now MANIFEST's own
+# unfixed state. `8f8cc47` is T096's MANIFEST edit commit. The pin's purpose is unchanged: MANIFEST
+# still deploys agents as a directory entry and must not be collapsed into the agent guides.
+MANIFEST_BASELINE_REF = "8f8cc47"
 
 # T069's own pre-implementation tip (the Stage 2 guide commit + the BEFORE capture), not T066's.
 # Same reasoning as above: a baseline *ref* dates the comparison; a baseline *count* freezes it.
@@ -74,7 +79,12 @@ T069_BASELINE_REF = "8d6d56b"
 # REPOINTED AGAIN by T082 (`c512ae9` -> `ebb2958`): T082 adds a Base Rule pointer bullet to
 # CLAUDE.md's `## General Agent Template` Base Rules list (the untrusted-content trust boundary),
 # so `c512ae9` is now the file's own unfixed state. `ebb2958` is T082's CLAUDE.md edit commit.
-T070_BASELINE_REF = "ebb2958"
+#
+# REPOINTED AGAIN by T096 (`ebb2958` -> `8f8cc47`): T096 rewrites CLAUDE.md's `.claude/agents/` and
+# `.claude/skills/` paths to the relocated canon and adds one line naming the symlinks, so
+# `ebb2958` is now the file's own unfixed state. `8f8cc47` is T096's CLAUDE.md edit commit. The
+# cross-context redundancy this pin protects is untouched — only path strings moved.
+T070_BASELINE_REF = "8f8cc47"
 
 # T082's own edit commit (same commit as the repoint above). T082 adds a mandatory Base Rule bullet
 # to `general-agent-template.md` too (the same untrusted-content pointer) — a legitimate, required

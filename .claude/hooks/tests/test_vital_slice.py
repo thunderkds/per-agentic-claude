@@ -240,9 +240,16 @@ def test_ac6_the_pinned_simplicity_row_still_matches_every_role_guide(role):
     )
 
 
+# T071 pinned the agent-template script at PRE_TASK_REF to prove T071 did not touch it. T096
+# necessarily does: the script asserts on the role guides, which moved from `.claude/agents/` to
+# `agents/`. REPOINTED by T096 (`b69410c` -> `8f8cc47`) rather than deleted — the pin still answers
+# "has anything since edited this script?", just dated from the relocation instead of from T071.
+AGENT_TEMPLATE_SCRIPT_REF = "8f8cc47"
+
+
 def test_ac7_agent_template_script_is_unmodified_and_still_passes():
     rel = "scripts/test-agent-template.sh"
-    assert (ROOT / rel).read_bytes() == read_at(rel, PRE_TASK_REF), f"{rel} was modified"
+    assert (ROOT / rel).read_bytes() == read_at(rel, AGENT_TEMPLATE_SCRIPT_REF), f"{rel} was modified"
     proc = subprocess.run(["sh", str(ROOT / rel)], capture_output=True, text=True)
     assert proc.returncode == 0, f"{rel} failed:\n{proc.stdout[-2000:]}\n{proc.stderr[-2000:]}"
 
