@@ -1656,3 +1656,118 @@ the work.
 Rationale recorded because it is invisible in the code: nothing in the repo marks `main` as
 frozen, and the default instinct of both the Supervisor and any sub-agent is to treat `main` as
 the integration target.
+
+---
+
+## Multi-harness portability: canonical `skills/` + `agents/` at plain root (Stage 0.5 grilling, 2026-08-27)
+
+**Status: intent locked, direction NOT locked.** Requirement grilling ran; `brainstorming` (the
+divergent half of Stage 0.5) is **deferred** by user sequencing — T094 lands first, planning after.
+No DDR is written yet, precisely because writing one now would pre-empt brainstorming. Do not treat
+this entry as a decision of record; it is the grilled problem statement plus the evidence behind it.
+
+**Trigger:** the user reported Codex support is shallow in practice — "the skill is not available
+cause diff of folder name, path does not found". Proposed moving skills/agents/hooks out of
+`.claude/` into a neutral root, with scripts + `AGENTS.md`/`CLAUDE.md` projecting into `.claude/`,
+`.codex/`, etc.
+
+**User decisions taken during grilling:**
+- Canonical dir = `skills/` + `agents/` at **plain root** (visible, not hidden). Rejected `.agents/`
+  and rejected keeping `.claude/` as canon.
+- **Not** a shared central install. Per-project, because each project carries its own customizations
+  — which is ADR-0001's own rationale, so ADR-0001 is **not** reopened.
+- Sequencing: fix T094 (red hook suite on v2) first, plan this afterwards.
+
+**External evidence (4 repos scanned 2026-08-27).** All four put canonical skills at a plain root
+path; **none** treats `.claude/skills/` as source of truth:
+- `wshobson/agents` — canon in `plugins/` as Claude-format markdown; per-harness trees **generated**
+  by `tools/adapters/` via `make generate-all` and **gitignored**. Its limits table is the useful
+  artifact: lifecycle **hooks port only to OpenCode and Antigravity**; per-agent tool allowlists
+  degrade on Codex/Cursor; **Codex enforces an 8 KB skill-body cap**; model aliases map per harness.
+- `mattpocock/skills` — canon at root `skills/`; `npx skills@latest add` lets the user pick skills
+  *and which agents to install them on*, writing "ordinary files you own and can edit". (Already this
+  kit's source for `write-better-skill`, so not a foreign convention.)
+- `bestagentkits/agency-skills` — canon at root `skills/<group>/<skill>/`; **one `SKILL.md` serves
+  Claude and Codex simultaneously**, with vendor metadata in a sidecar (`agents/openai.yaml`) rather
+  than a duplicate tree. No build step, no symlinks.
+- `codejunkie99/agentic-stack` — portable `.agent/` folder carrying skills **and memory**.
+
+**The three cross-repo invariants:** (1) canon at a plain root path; (2) harness selection happens at
+**install time**, so a project only ever gets the vendor dirs for CLIs it actually uses — this is the
+answer to the user's root-clutter objection; (3) copy real user-owned files, don't symlink.
+
+**Why the symlink-vs-absolute debate dissolved.** The user asked whether absolute paths were fine.
+Absolute-to-central-clone is what **ADR-0001** killed. Absolute-per-project survives that, but breaks
+Stage 3: every sub-agent works in a git worktree (`CLAUDE.md:85`, `common-infrastructure.md:39`), and
+a baked absolute link either is absent from the worktree (gitignored → the user's original "skill not
+available" bug, reproduced by our own fix) or points back at the main checkout (→ agents silently
+read skills from outside their isolation boundary, which for this kit is most tasks). Invariant 3 and
+ADR-0001 independently land on **copy**, which makes both failure modes vanish — a worktree of a repo
+with committed real files simply has the files. Absolute stays legitimate only where the harness
+resolves it at runtime, i.e. the `"$CLAUDE_PROJECT_DIR"` pattern already in `.claude/settings.json`.
+
+**Two Supervisor claims corrected during grilling, recorded so they are not repeated:**
+- "The projection mechanism already exists in `setup.sh`" — **false**. `install_abs` (`setup.sh:154`)
+  is used only by `install_pack`, and its header comment forbids reuse: "do not repurpose for the
+  base install, which always copies via `harness_copy_manifest`." Projection would be new code.
+- "I scanned the trending repos" — at that point only web-search summaries had been read, not repos.
+
+**Relationship to DDR-0006.** DDR-0006 rejected generation because "protection stops at this repo's
+CI — `setup.sh` copies adapters into downstream projects that have no generator and no CI." That
+reasoning holds for **prose** (copied once, then edited locally) but not for **assets**: `setup.sh`
+is itself the mechanism that reaches downstream, and it runs there on every install. DDR-0006's own
+follow-up anticipated this: "Revisit if a 4th provider is added: at N=4 the generator's cost/benefit
+inverts and this DDR should be reconsidered." Scope is also different — DDR-0006 ruled only on
+doctrine text, never on skills/agents/hooks.
+
+**Open defect found, not yet ticketed (needs Stage 2, deferred behind T094):** `AGENTS.md:29-33`
+states "Codex has no equivalent of Claude Code's hooks, skills, or `Skill`/`Agent` tooling." Half of
+that is now false — Codex gained SKILL.md support in Dec 2025 (`.codex/skills/` project scope,
+`~/.codex/skills/` personal, 8 KB body cap). Hooks remain genuinely unportable. This stale sentence
+is part of why Codex runs failed: it tells both the user and any agent that skills are hopeless there.
+
+**Resume checklist — pick up only after T094 is green (in order):**
+1. Run `Skill({ skill: "brainstorming" })` on this topic. Deferred, not skipped: it is Stage 0.5's
+   divergent half and nothing below may be locked before it runs. Feed it the four-repo evidence and
+   the three invariants above so it starts from grilled inputs rather than re-deriving them.
+2. Write the DDR (`docs/ddr/NNNN-canonical-skills-at-plain-root.md`). Gate = 2-of-3: hard to reverse
+   (moderate — relocation touches every path reference), surprising without context (yes — moves
+   canon out of `.claude/`), genuine trade-off (yes). It must state its relationship to DDR-0006
+   (different scope: assets vs doctrine text) and to ADR-0001 (unchanged: per-project, copy, no
+   central clone). Do not silently auto-upgrade to an ADR — ask the user first if all 3 clear.
+3. Stage 2 `/plan` → `to-issues`. Expect at least two tasks, split because they fail differently:
+   (a) the relocation of `skills/` + `agents/` to plain root, incl. every path reference in
+       CLAUDE.md, `docs/claude-md/`, all 30 skills, 7 hooks, `setup.sh`, `update.sh`, tests;
+   (b) the per-harness destination map + `setup.sh --harness <name>` flag.
+   Hard-Stop Gate 2 floors both at **C2 / Medium Risk** ("restructure", "migrate to pattern").
+4. Separate small task: correct `AGENTS.md:29-33` (stale "Codex has no skills") and add the real
+   Codex limits — `.codex/skills/` project scope, `~/.codex/skills/` personal, 8 KB body cap,
+   degraded per-agent tool allowlist. Hooks stay listed as genuinely unportable.
+5. Only after (3) ships: revisit whether `packs/`'s `install_abs` symlink-from-central-clone model
+   (ADR-0001 left it explicitly out of scope) should move to the same copy model.
+
+**Do NOT do any of the above before T094 is green.** A relocation that rewrites every hook path is
+undebuggable against a red suite — a relocation break and T094's three existing failures are
+indistinguishable in the same output. The green suite is the safety net for step 3, not a formality.
+
+---
+
+## T096 — Canon lives at plain root; `.claude/` reaches it through relative symlinks (2026-08-28)
+
+`skills/` and `agents/` are the canon: real directories, tracked in git, at plain root, so no
+harness is structurally privileged. Claude Code only discovers skills and agent guides beneath
+`.claude/`, so two committed **relative** symlinks bridge the gap — `.claude/skills -> ../skills`,
+`.claude/agents -> ../agents`. Implements DDR-0007.
+
+Relative, not absolute, is a correctness requirement rather than a style choice: every sub-agent
+works in a `git worktree`, and an absolute target either does not exist there or points back into
+the main checkout, letting an agent read canon from outside its isolation boundary. Verified by
+driving `git worktree add` — the link resolves inside the new worktree.
+
+Enforced three ways: `scripts/validate.sh` exits 1 on a missing/absolute/non-symlink link,
+`.claude/hooks/tests/test_canon_symlinks.py` pins both properties with mutation controls, and
+`scripts/smoke-install.sh` checks the installed shape.
+
+**The 1,764-reference historical figure in the T096 guide was stale** — the real count was 909.
+The guide's Correction block and defect D2 in `tasks/TASK_REVIEW_T096.md` carry the breakdown. The
+prohibition it protects (never `sed`/`xargs`/`find -exec` across the audit trail) is unchanged.

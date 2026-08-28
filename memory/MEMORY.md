@@ -23,6 +23,7 @@
      (mean 326, max 796). Reported by the size test, never enforced; /compact-memory's job. -->
 
 ### Decisions
+- [Multi-harness portability: canon at plain root](decisions.md) — Stage 0.5 grilling 2026-08-27: user locked `skills/`+`agents/` at plain root, per-project (not central), copy-not-symlink; brainstorming deferred behind T094; 4 repos scanned; AGENTS.md:29-33 stale on Codex skills
 - [v2 is the working branch, main frozen](decisions.md) — from 2026-08-25 all work lands on `v2`; `main` is the user's live v1 install and is never a merge target; worktrees branch from v2, Stage 5 merges into v2
 - [CLAUDE_LEGACY.md sync policy](decisions.md) — mirror new skills + session-startup gates + Hard-Stop Gates from CLAUDE.md into CLAUDE_LEGACY.md on each addition; bump version
 - [Hard-stop gates in Permanent Rules](decisions.md) — 4 Supervisor self-checks: no TASK_GUIDE=no work; refactor/QA floors at C2/Medium; KANBAN current before session ends; one project per KANBAN
@@ -181,6 +182,12 @@
 
 ### Patterns & Gotchas (thinking-report)
 - [thinking-report: trigger, tags, table styling](learnings.md) — auto after Stage 0.5b direction approval + Stage 2 confirmation (`session=<type> task=<ID> branch=<branch>`); Assumptions tags tag-resolved/green, tag-assumption/amber, tag-deferred/purple, min 2 items; `col-chosen` must be on BOTH th and td or the body column renders unstyled
+
+### Decisions (T096 — canon relocation, 2026-08-28)
+- [Canon at plain root, `.claude/` reaches it via relative symlinks](decisions.md) — `skills/`+`agents/` are the tracked canon; `.claude/{skills,agents}` are committed **relative** links so a worktree resolves inside itself. DDR-0007.
+- [Moving a conventionally-read path obliges every installer to bridge it](learnings.md) — `MANIFEST` moved the canon, `update.sh` never got the link; existing installs read stale canon while both installers printed RC=0 success. A fully green suite missed it because everything tested the fresh-install path.
+- [Untracked files in the main checkout never reach a worktree](learnings.md) — commit the TASK_GUIDE and every doc its Requirement Refs cite *before* spawning, or the agent files a false defect against its own missing provenance.
+- [Stage 3 spawns must be detached with `setsid`](learnings.md) — otherwise harness process-group teardown kills the agent (exit 129) when the launching Bash call returns. `acceptEdits` covers file edits only, never Bash.
 
 ### Decisions (Packs)
 - [Packs are additive-only, core unchanged](decisions.md) — pack agents/skills symlink alongside core; never replace core resources

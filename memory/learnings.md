@@ -1702,3 +1702,59 @@ file — the one an agent is least likely to already know about.
 `grep -rn` (which does traverse dot-directories) or name `.cursor/rules/agent-base.mdc` explicitly.
 Do not accept a search-tool sweep as proof of adapter coverage. The conformance test does this
 correctly — it iterates the `ADAPTERS` mapping rather than searching.
+
+---
+
+## Moving a path that a consumer reads by convention obliges every installer to bridge it (T096, 2026-08-28)
+
+T096 moved canon from `.claude/skills` to `skills/` and updated `MANIFEST`. `setup.sh` grew an
+`install_canon_symlinks`; **`update.sh` was never touched**. The result: every existing install
+that ran `update.sh` got fresh canon at plain root while `.claude/skills` stayed a stale real
+directory — and Claude Code reads `.claude/`. Both installers printed success with `RC=0` over
+content the harness could not see.
+
+**Neither the full green suite nor Stage 4 code-review caught this.** 707 hook tests, 40 tests,
+`validate.sh` and `smoke-install.sh` were all green, because every one of them exercises the
+*fresh-install* path. The upgrade path had no coverage at all.
+
+What caught it was Stage 5 `/verify` refusing to run tests and driving the real `setup.sh` and
+`update.sh` CLIs against a simulated pre-move install. That is the skill's core instruction —
+runtime observation, not CI rerun — and it is the whole reason the gate exists as a separate
+stage rather than a second test run.
+
+Generalisable check when a task relocates a path: **enumerate every consumer that reaches it by
+convention, then every installer/updater that writes it.** A `MANIFEST` edit covers the copy; it
+does not cover a bridge the copy does not create.
+
+Fix shape worth reusing: one shared `harness_install_canon_symlinks` in `lib/harness-fetch.sh`
+called by both installers; a pre-existing real directory is **moved aside to `<link>.bak`**, never
+deleted, and a `.bak` collision hard-fails rather than clobbering an earlier rescue.
+
+## Untracked files in the main checkout do not reach a worktree (T096, 2026-08-28)
+
+The T096 sub-agent reported `docs/ddr/0007-*.md` and `BRAINSTORMING_LOG_harness-kit-portability.md`
+as nonexistent — "not in the worktree, and not on any local or remote branch" — and filed it as
+guide defect D1. Both files existed; they were **untracked** in the main checkout, so `git worktree
+add` never carried them. `tasks/TASK_GUIDE_T096.md` itself had the same problem and had to be
+committed before the agent could start at all.
+
+**Before any Stage 3 spawn: commit the guide and every document its Requirement Refs cite.** An
+agent that cannot see its own provenance either halts or, as here, spends real effort documenting
+a defect that is actually a Supervisor propagation failure.
+
+## Stage 3 spawns must be detached with `setsid` (2026-08-28)
+
+A sub-agent launched into a Ghostty window from a Bash tool call died twice at ~4m30s and ~2m20s
+with exit 129 (128+SIGHUP) and zero commits. A `setsid`-detached probe carrying the same trap
+survived past both death points, which identified the cause as **harness process-group teardown**
+when the launching Bash call completes — not the user closing the window, and not agent error.
+
+Working launch:
+
+```
+setsid ghostty -e bash -c $SP/launch_Txxx.sh >/dev/null 2>&1 < /dev/null & disown
+```
+
+The marker-file trap (`.pid`/`.exit`/`.done`) still earns its place — it distinguishes normal
+completion from a window close from an agent error — but it cannot survive a process-group kill on
+its own. `--permission-mode acceptEdits` covers file edits only, never Bash.
