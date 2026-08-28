@@ -1,7 +1,7 @@
 # AGENTS.md
 
 This is a thin adapter for non-Claude agentic CLIs (Codex, etc.) — auto-read at the repo root.
-`CLAUDE.md` and `.claude/agents/` remain canonical; if anything here conflicts with those, they win.
+`CLAUDE.md` and `agents/` remain canonical; if anything here conflicts with those, they win.
 See `docs/claude-md/` for full pipeline, Phase 0, folder, naming, and memory detail.
 
 Before any work:

@@ -53,7 +53,7 @@ Guide the user through this checklist step by step.
    *(Optional)* For non-trivial codebases, a structural code-graph approach — building a dependency graph of the code — can auto-compute hub/centrality (→ Risk, Stage 2) and a change's code-dependency blast radius (→ review scope, Stage 4). It's optional: if absent, those signals stay manual judgment. See the same note in `CLAUDE_LEGACY.md`.
 
 3. **Agent Guide Folder Verification**
-   Confirm that the folder `.claude/agents/` exists in the project root and contains all required files.
+   Confirm that the folder `agents/` exists in the project root and contains all required files.
    If any file is missing, output the template for it from `templates/` and ask the user to save it.
 
 4. **Git Repository Verification**
@@ -86,8 +86,8 @@ After all items are confirmed:
 
 ## Stage 1.5: Sub-Agent Architecture (Dynamic Team Design)
 Using the locked Project Context Document:
-- Reference the **General Agent Template** (`.claude/agents/general-agent-template.md`).
-- Reference the files in the `.claude/agents/` folder.
+- Reference the **General Agent Template** (`agents/general-agent-template.md`).
+- Reference the files in the `agents/` folder.
 - Design the exact sub-agent team needed. Always include **Common-Infrastructure-Agent**, **Backend-Implementer**, **Frontend-Implementer**, and **QA-Automation-Agent** as the base team for greenfield projects — unconditional and never gated by any skill.
 - If, and only if, the requirement implies a role the base team doesn't cover (e.g. a mobile/data/ML-specific agent), invoke `Skill({ skill: "craft-agent" })` to draft the supplemental roster. This is optional and conditional — do not invoke it as a required step on every pass; skip it entirely when the base team already covers the requirement.
 - For each sub-agent, clearly state:
@@ -96,10 +96,10 @@ Using the locked Project Context Document:
   - Required skills / expertise
   - Specific rules (only overrides)
   - **CLI & exact spawn command**
-  - Reference to its guide in the `.claude/agents/` folder
+  - Reference to its guide in the `agents/` folder
 
 Output in a clear Markdown table, then ask:
-"Here is the proposed sub-agent team (with exact CLI commands and references to .claude/agents/ folder). Approve or request any modifications?"
+"Here is the proposed sub-agent team (with exact CLI commands and references to agents/ folder). Approve or request any modifications?"
 
 Only after explicit user approval, announce:
 > "Sub-agent architecture locked. Moving to Stage 2: Intent Transformation (Planning)."
@@ -115,7 +115,7 @@ When the user invokes `/plan`, the Supervisor must:
 2. Take the approved Project Context Document and brainstorming direction.
 3. Create (or update) `PROJECT_SPEC.md` as the single source of truth using `templates/PROJECT_SPEC_template.md`.
 4. Create (or update) `PROJECT_KANBAN.md` as the compact task board using `templates/PROJECT_KANBAN_template.md`.
-5. Assign each task three independent labels: **Complexity (C0–C3)**, **Risk (Low/Med/High)**, and **Priority (P0–P2)**. Split any task larger than C3 (an **Epic**) into smaller tasks before generating guides. (Complexity drives agent process; Risk gates `security-review`; Priority sets ordering — see the Complexity matrix in each role guide (`.claude/agents/<role>.md`).) When setting **Risk**, factor in whether the task touches a **hub file** — one many others depend on, so its code-dependency blast radius is large. In legacy mode this is recorded in `docs/legacy/risk-hotspots.md`; in greenfield it's a judgment call (optionally informed by a structural code-graph approach — see Stage 1). A hub touch raises Risk a level even when the edit itself is small.
+5. Assign each task three independent labels: **Complexity (C0–C3)**, **Risk (Low/Med/High)**, and **Priority (P0–P2)**. Split any task larger than C3 (an **Epic**) into smaller tasks before generating guides. (Complexity drives agent process; Risk gates `security-review`; Priority sets ordering — see the Complexity matrix in each role guide (`agents/<role>.md`).) When setting **Risk**, factor in whether the task touches a **hub file** — one many others depend on, so its code-dependency blast radius is large. In legacy mode this is recorded in `docs/legacy/risk-hotspots.md`; in greenfield it's a judgment call (optionally informed by a structural code-graph approach — see Stage 1). A hub touch raises Risk a level even when the edit itself is small.
 
 **Task State Management (Token-Efficient Design)**
 Use two files:
@@ -125,7 +125,7 @@ Use two files:
 **After user approves the task breakdown:**
 - Generate **all** TASK_GUIDE_Txxx.md files (one for every task) using `templates/TASK_GUIDE_template.md`.
 - Save every file into the `tasks/` folder (e.g. `tasks/TASK_GUIDE_T001.md`).
-- In each TASK_GUIDE file, explicitly instruct the sub-agent to read the relevant guide from `.claude/agents/`.
+- In each TASK_GUIDE file, explicitly instruct the sub-agent to read the relevant guide from `agents/`.
 - Fill each guide's `## Dependencies & Reachability` section: `Depends on:` names another Task ID this one needs as a precondition (or `None`); `Entry point:` names the literal, grep-able identifier (route, button label, function/consumer name) that reaches this task's output, or `Standalone — N/A` with a one-line reason. This is **advisory, not a Hard-Stop Gate** — `Depends on` is checked (non-blocking warning) by `pre_agent_validate_guide.py` at spawn time; `Entry point` is checked (non-blocking finding) by `code-review` Phase 0.5. It is distinct from `PROJECT_KANBAN.md`'s `## Blocked` table, which remains a manual escape hatch for non-task blockers (external people/APIs/decisions) that can't be checked automatically.
 
 Ask the user to confirm the tasks/ folder has been populated.
@@ -151,7 +151,7 @@ For every task moved to In Progress:
 - **Pillar 2 (implementation):** build the slice test-first (`tdd`), touching only the predicted files. If the slice adds or changes a **DB schema/migration**, run `Skill({ skill: "migration-safety" })` and pass its go/no-go gate **before** the implementation gate goes green.
 - The TASK_GUIDE_Txxx.md already exists in tasks/ — no need to regenerate it.
 - Invoke `Skill({ skill: "craft-spawn-prompt" })` with the task's guide path first — it assembles the spawn prompt, pre-flight-checks it against the spawn hook, and recommends the model per the task's **Complexity** (C0→haiku, C1→sonnet, C2→sonnet/opus, C3→opus). Then issue the `Agent()` call in that worktree using its output.
-- The sub-agent must read both its TASK_GUIDE_Txxx.md (from tasks/) and the relevant agent guide from .claude/agents/.
+- The sub-agent must read both its TASK_GUIDE_Txxx.md (from tasks/) and the relevant agent guide from agents/.
 - **Memory injection**: Pass the **path** `memory/MEMORY.md` in every sub-agent spawn prompt, after the task pointer, with an instruction to read it in full. Do **not** paste its contents. This is the hot-tier memory index (≤50,000 characters) — **the agent must read it itself** as a mandatory startup step, so the cost is paid once, by the agents that need it, rather than on every spawn.
 
 Run the app during implementation to catch regressions early:

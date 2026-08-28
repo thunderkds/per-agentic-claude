@@ -14,7 +14,7 @@ resolved from ``memory/event-trace/<task>.jsonl`` — see `resolve_witness`.
 If no trace file/record exists, it renders as explicitly underived.
 
 Usage:
-    python3 .claude/skills/delivery-report/render.py <TASK_ID> <guide_path> <branch> [out_dir]
+    python3 skills/delivery-report/render.py <TASK_ID> <guide_path> <branch> [out_dir]
 
 Prints the rendered HTML to stdout and the save path to stderr, matching the
 thinking-report / html-report convention of a Supervisor-driven save step.

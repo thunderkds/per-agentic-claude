@@ -44,13 +44,13 @@ lock_hash() {
 # ── Build a minimal fixture "harness" repo (the fresh upstream update fetches) ─
 FIXTURE="$WORK/fixture-repo"
 build_fixture() {
-  mkdir -p "$FIXTURE/.claude/agents" \
-           "$FIXTURE/.claude/skills/brainstorming" \
+  mkdir -p "$FIXTURE/agents" \
+           "$FIXTURE/skills/brainstorming" \
            "$FIXTURE/.claude/hooks" \
            "$FIXTURE/templates"
-  printf 'backend-agent-content\n'  > "$FIXTURE/.claude/agents/backend.md"
-  printf 'frontend-agent-content\n' > "$FIXTURE/.claude/agents/frontend.md"
-  printf 'skill-content\n'          > "$FIXTURE/.claude/skills/brainstorming/SKILL.md"
+  printf 'backend-agent-content\n'  > "$FIXTURE/agents/backend.md"
+  printf 'frontend-agent-content\n' > "$FIXTURE/agents/frontend.md"
+  printf 'skill-content\n'          > "$FIXTURE/skills/brainstorming/SKILL.md"
   printf 'hook-content\n'           > "$FIXTURE/.claude/hooks/example_hook.py"
   printf 'template-content\n'       > "$FIXTURE/templates/PRD_template.md"
   printf '{ "hooks": {} }\n'        > "$FIXTURE/.claude/settings.json"
@@ -58,8 +58,8 @@ build_fixture() {
   printf 'BROWNFIELD SUPERVISOR RULES\n' > "$FIXTURE/CLAUDE_LEGACY.md"
   cat > "$FIXTURE/MANIFEST" <<'EOF'
 # fixture MANIFEST
-.claude/agents
-.claude/skills
+agents
+skills
 .claude/hooks
 templates
 EOF
@@ -131,9 +131,9 @@ fi
 # =============================================================================
 if fresh_target "target2"; then
   T2="$NEW_TARGET"
-  # Simulate an old symlink-model install: replace .claude/agents with a symlink.
-  rm -rf "$T2/.claude/agents"
-  ln -s "$FIXTURE/.claude/agents" "$T2/.claude/agents"
+  # Simulate an old symlink-model install: replace agents with a symlink.
+  rm -rf "$T2/agents"
+  ln -s "$FIXTURE/agents" "$T2/agents"
   LOCK2_BEFORE=$(cat "$T2/.claude/harness-lock.json")
 
   RC=0
@@ -150,7 +150,7 @@ if fresh_target "target2"; then
     fail "test2: no symlink migration message emitted"
   fi
   # Symlink not converted (still a symlink) and lock untouched (no files touched).
-  if [ -L "$T2/.claude/agents" ]; then
+  if [ -L "$T2/agents" ]; then
     pass "test2: symlink was NOT converted (detect-and-refuse only)"
   else
     fail "test2: symlink was altered/converted"
@@ -168,7 +168,7 @@ fi
 if fresh_target "target3"; then
   T3="$NEW_TARGET"
   # Publish a NEW upstream version of one file so we can prove propagation.
-  printf 'backend-agent-content-V2\n' > "$FIXTURE/.claude/agents/backend.md"
+  printf 'backend-agent-content-V2\n' > "$FIXTURE/agents/backend.md"
   git -C "$FIXTURE" commit -q -am "upstream: bump backend.md to V2"
 
   RC=0
@@ -186,21 +186,21 @@ if fresh_target "target3"; then
     fail "test3: a conflict prompt fired when nothing was customized"
   fi
   # The untouched file received the fresh upstream content silently.
-  if grep -q 'backend-agent-content-V2' "$T3/.claude/agents/backend.md" 2>/dev/null; then
+  if grep -q 'backend-agent-content-V2' "$T3/agents/backend.md" 2>/dev/null; then
     pass "test3: untouched file silently overwritten with fresh upstream (V2)"
   else
     fail "test3: untouched file was not updated to upstream V2"
   fi
   # Lock re-records the new upstream hash.
-  EXP3=$(sha256sum "$FIXTURE/.claude/agents/backend.md" | awk '{print $1}')
-  GOT3=$(lock_hash "$T3/.claude/harness-lock.json" ".claude/agents/backend.md")
+  EXP3=$(sha256sum "$FIXTURE/agents/backend.md" | awk '{print $1}')
+  GOT3=$(lock_hash "$T3/.claude/harness-lock.json" "agents/backend.md")
   if [ "$EXP3" = "$GOT3" ]; then
     pass "test3: lock re-records the new upstream hash for the overwritten file"
   else
     fail "test3: lock hash not updated (expected $EXP3, got $GOT3)"
   fi
   # Restore fixture to V1 for the remaining tests.
-  printf 'backend-agent-content\n' > "$FIXTURE/.claude/agents/backend.md"
+  printf 'backend-agent-content\n' > "$FIXTURE/agents/backend.md"
   git -C "$FIXTURE" commit -q -am "upstream: restore backend.md to V1"
 fi
 
@@ -209,8 +209,8 @@ fi
 # =============================================================================
 if fresh_target "target4"; then
   T4="$NEW_TARGET"
-  HASH4_BEFORE=$(lock_hash "$T4/.claude/harness-lock.json" ".claude/agents/backend.md")
-  printf 'MY LOCAL CUSTOMIZATION\n' > "$T4/.claude/agents/backend.md"
+  HASH4_BEFORE=$(lock_hash "$T4/.claude/harness-lock.json" "agents/backend.md")
+  printf 'MY LOCAL CUSTOMIZATION\n' > "$T4/agents/backend.md"
 
   RC=0
   run_update "$T4" "$WORK/skip.in" || RC=$?
@@ -226,20 +226,20 @@ if fresh_target "target4"; then
   else
     fail "test4: no conflict prompt fired for the edited file"
   fi
-  if grep -q 'MY LOCAL CUSTOMIZATION' "$T4/.claude/agents/backend.md" 2>/dev/null \
-     && ! grep -q 'backend-agent-content' "$T4/.claude/agents/backend.md" 2>/dev/null; then
+  if grep -q 'MY LOCAL CUSTOMIZATION' "$T4/agents/backend.md" 2>/dev/null \
+     && ! grep -q 'backend-agent-content' "$T4/agents/backend.md" 2>/dev/null; then
     pass "test4: [s]kip left the local customization intact"
   else
     fail "test4: [s]kip did not preserve the local edit"
   fi
-  HASH4_AFTER=$(lock_hash "$T4/.claude/harness-lock.json" ".claude/agents/backend.md")
+  HASH4_AFTER=$(lock_hash "$T4/.claude/harness-lock.json" "agents/backend.md")
   if [ "$HASH4_AFTER" = "$HASH4_BEFORE" ]; then
     pass "test4: lock hash for the skipped file unchanged (prior hash kept)"
   else
     fail "test4: lock hash changed for a skipped file (before=$HASH4_BEFORE after=$HASH4_AFTER)"
   fi
   # Prove a non-edited file was still silently overwritten (only the edit prompted).
-  if grep -q 'frontend-agent-content' "$T4/.claude/agents/frontend.md" 2>/dev/null; then
+  if grep -q 'frontend-agent-content' "$T4/agents/frontend.md" 2>/dev/null; then
     pass "test4: untouched sibling file overwritten silently (prompt was per-file)"
   else
     fail "test4: sibling file handling incorrect"
@@ -251,7 +251,7 @@ fi
 # =============================================================================
 if fresh_target "target5"; then
   T5="$NEW_TARGET"
-  printf 'ANOTHER LOCAL EDIT\n' > "$T5/.claude/agents/backend.md"
+  printf 'ANOTHER LOCAL EDIT\n' > "$T5/agents/backend.md"
 
   RC=0
   run_update "$T5" "$WORK/overwrite.in" || RC=$?
@@ -261,14 +261,14 @@ if fresh_target "target5"; then
     fail "test5: update.sh returned non-zero ($RC) on an overwrite resolution"
     cat "$WORK/update.log" >&2
   fi
-  if grep -q 'backend-agent-content' "$T5/.claude/agents/backend.md" 2>/dev/null \
-     && ! grep -q 'ANOTHER LOCAL EDIT' "$T5/.claude/agents/backend.md" 2>/dev/null; then
+  if grep -q 'backend-agent-content' "$T5/agents/backend.md" 2>/dev/null \
+     && ! grep -q 'ANOTHER LOCAL EDIT' "$T5/agents/backend.md" 2>/dev/null; then
     pass "test5: [o]verwrite replaced the local edit with fresh upstream"
   else
     fail "test5: [o]verwrite did not restore the upstream version"
   fi
-  EXP5=$(sha256sum "$FIXTURE/.claude/agents/backend.md" | awk '{print $1}')
-  GOT5=$(lock_hash "$T5/.claude/harness-lock.json" ".claude/agents/backend.md")
+  EXP5=$(sha256sum "$FIXTURE/agents/backend.md" | awk '{print $1}')
+  GOT5=$(lock_hash "$T5/.claude/harness-lock.json" "agents/backend.md")
   if [ "$EXP5" = "$GOT5" ]; then
     pass "test5: lock re-records the upstream hash for the overwritten file"
   else
@@ -281,7 +281,7 @@ fi
 # =============================================================================
 if fresh_target "target6"; then
   T6="$NEW_TARGET"
-  printf 'UNRESOLVABLE LOCAL EDIT\n' > "$T6/.claude/agents/backend.md"
+  printf 'UNRESOLVABLE LOCAL EDIT\n' > "$T6/agents/backend.md"
 
   RC=0
   run_update "$T6" /dev/null || RC=$?
@@ -290,7 +290,7 @@ if fresh_target "target6"; then
   else
     fail "test6: update.sh guessed a resolution instead of refusing on no input"
   fi
-  if grep -q 'UNRESOLVABLE LOCAL EDIT' "$T6/.claude/agents/backend.md" 2>/dev/null; then
+  if grep -q 'UNRESOLVABLE LOCAL EDIT' "$T6/agents/backend.md" 2>/dev/null; then
     pass "test6: local edit left untouched when no input was available"
   else
     fail "test6: local edit was altered despite no input"
@@ -299,6 +299,93 @@ if fresh_target "target6"; then
     pass "test6: instructed the user to re-run interactively"
   else
     fail "test6: no 're-run interactively' guidance emitted"
+  fi
+fi
+
+# =============================================================================
+# Test 7 — THE REAL UPGRADE PATH (AC13/AC15). Install at the pre-T096 shape
+# (`.claude/skills` a real directory holding stale content), run the REAL
+# update.sh, and assert on what Claude Code would actually read: the content at
+# `.claude/skills/brainstorming/SKILL.md` must equal the canon at
+# `skills/brainstorming/SKILL.md`.
+# =============================================================================
+if fresh_target "target7"; then
+  T7="$NEW_TARGET"
+  rm -f "$T7/.claude/skills"
+  mkdir -p "$T7/.claude/skills/brainstorming"
+  printf 'STALE CONTENT FROM OLD INSTALL\n' > "$T7/.claude/skills/brainstorming/SKILL.md"
+
+  RC=0
+  run_update "$T7" /dev/null || RC=$?
+  if [ "$RC" -eq 0 ]; then
+    pass "test7: update.sh exited 0 on a pre-T096-shape install"
+  else
+    fail "test7: update.sh returned non-zero ($RC) — see $WORK/update.log"
+    cat "$WORK/update.log" >&2
+  fi
+  if [ -L "$T7/.claude/skills" ] && [ "$(readlink "$T7/.claude/skills")" = "../skills" ]; then
+    pass "test7: .claude/skills is the relative symlink after update"
+  else
+    fail "test7: .claude/skills is not '../skills' after update"
+  fi
+  # The assertion that matters: read through the path Claude Code uses.
+  if [ -f "$T7/.claude/skills/brainstorming/SKILL.md" ] \
+     && cmp -s "$T7/.claude/skills/brainstorming/SKILL.md" "$T7/skills/brainstorming/SKILL.md"; then
+    pass "test7: .claude/skills/brainstorming/SKILL.md matches the plain-root canon"
+  else
+    fail "test7: content read via .claude/skills does not match the canon (stale canon regression)"
+  fi
+  if grep -q 'STALE CONTENT FROM OLD INSTALL' "$T7/.claude/skills.bak/brainstorming/SKILL.md" 2>/dev/null; then
+    pass "test7: the stale directory was preserved at .claude/skills.bak, not deleted"
+  else
+    fail "test7: stale content was not preserved at .claude/skills.bak"
+  fi
+fi
+
+# =============================================================================
+# Test 8 — correct-shape install with the canon link DELETED: update.sh restores
+# it. Without this, the link is never re-established by any run (AC13).
+# =============================================================================
+if fresh_target "target8"; then
+  T8="$NEW_TARGET"
+  rm -f "$T8/.claude/skills" "$T8/.claude/agents"
+
+  RC=0
+  run_update "$T8" /dev/null || RC=$?
+  if [ "$RC" -eq 0 ]; then
+    pass "test8: update.sh exited 0 with the canon links missing"
+  else
+    fail "test8: update.sh returned non-zero ($RC) — see $WORK/update.log"
+  fi
+  if [ "$(readlink "$T8/.claude/skills")" = "../skills" ] \
+     && [ "$(readlink "$T8/.claude/agents")" = "../agents" ]; then
+    pass "test8: update.sh re-established both canon symlinks"
+  else
+    fail "test8: canon symlinks still missing after update.sh"
+  fi
+fi
+
+# =============================================================================
+# Test 9 — stale real directory that cannot be migrated (a .bak already exists):
+# update.sh must FAIL rather than print "Update complete" over it (AC14).
+# =============================================================================
+if fresh_target "target9"; then
+  T9="$NEW_TARGET"
+  rm -f "$T9/.claude/skills"
+  mkdir -p "$T9/.claude/skills" "$T9/.claude/skills.bak"
+  printf 'STALE CONTENT FROM OLD INSTALL\n' > "$T9/.claude/skills/SKILL.md"
+
+  RC=0
+  run_update "$T9" /dev/null || RC=$?
+  if [ "$RC" -ne 0 ]; then
+    pass "test9: update.sh exits non-zero when a stale canon dir cannot be migrated (rc=$RC)"
+  else
+    fail "test9: update.sh reported success over a stale, unmigratable .claude/skills"
+  fi
+  if ! grep -q 'Update complete' "$WORK/update.log" 2>/dev/null; then
+    pass "test9: no 'Update complete' printed over a stale canon"
+  else
+    fail "test9: printed 'Update complete' over a stale canon"
   fi
 fi
 

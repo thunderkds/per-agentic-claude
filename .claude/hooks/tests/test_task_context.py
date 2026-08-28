@@ -47,7 +47,7 @@ FOREIGN_CWD = tempfile.gettempdir()
 # existed *before* this change — the byte-compatibility fixture for AC8.
 PRE_CHANGE_TRACE_LINE = (
     '{"timestamp": "2026-07-23T04:01:23.954543+00:00", "tool_name": "Read", '
-    '"summary": "{\\"file_path\\": \\"/home/x/.claude/agents/general-agent-template.md\\"}", '
+    '"summary": "{\\"file_path\\": \\"/home/x/agents/general-agent-template.md\\"}", '
     '"is_error": false}'
 )
 

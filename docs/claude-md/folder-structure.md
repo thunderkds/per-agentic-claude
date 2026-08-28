@@ -4,15 +4,15 @@
 
 The project root **must** contain these folders:
 
-1. `.claude/agents/` folder containing:
-   - .claude/agents/general-agent-template.md
-   - .claude/agents/common-infrastructure.md
-   - .claude/agents/backend.md
-   - .claude/agents/frontend.md
-   - .claude/agents/qa.md
+1. `agents/` folder containing:
+   - agents/general-agent-template.md
+   - agents/common-infrastructure.md
+   - agents/backend.md
+   - agents/frontend.md
+   - agents/qa.md
 
-2. `.claude/skills/` folder containing custom project skills (Claude Code auto-discovers skills here):
-   - .claude/skills/brainstorming/SKILL.md
+2. `skills/` folder containing custom project skills (Claude Code discovers them through the `.claude/skills` symlink — see *Canon and the `.claude/` symlinks* below):
+   - skills/brainstorming/SKILL.md
    - *(pack skills are symlinked here when a pack is installed)*
 
 3. `tasks/` folder
@@ -45,3 +45,40 @@ The project root **must** contain these folders:
    - memory/decisions.md (cold tier — architectural/infra decisions)
    - memory/glossary.md (cold tier — domain terms & domain models)
    - memory/learnings.md (cold tier — requirement clarifications, patterns, gotchas)
+
+---
+
+## Canon and the `.claude/` symlinks
+
+`skills/` and `agents/` are the **canon**: the real directories, tracked in git, sitting at plain
+root so that no harness is structurally privileged over another.
+
+Claude Code only discovers skills and agent guides beneath `.claude/`. Two committed symlinks
+bridge that gap:
+
+```
+.claude/skills -> ../skills
+.claude/agents -> ../agents
+```
+
+Three properties matter, and each is enforced by a test:
+
+1. **They are symlinks, not copies.** A copy would satisfy every path lookup while drifting out of
+   sync with the canon from the moment it was made.
+2. **Their targets are relative.** Every sub-agent works inside a `git worktree`. An absolute
+   target either does not exist in that worktree or points back at the main checkout, letting an
+   agent read canon from outside its isolation boundary.
+3. **They are committed.** Git stores symlinks natively, so a fresh `git clone` and a
+   `git worktree add` both reproduce them without any setup step.
+
+They are load-bearing. Deleting `.claude/skills` because `skills/` "already has everything" stops
+this repo from running its own skills. `scripts/validate.sh` and
+`.claude/hooks/tests/test_canon_symlinks.py` fail loudly if either link goes missing, becomes a
+real directory, or acquires an absolute target.
+
+Downstream installs get the same shape: `setup.sh` copies the canon to plain root from `MANIFEST`
+and then re-creates both links via `install_canon_symlinks()`. `update.sh` does the same on every
+run — both call `harness_install_canon_symlinks` in `lib/harness-fetch.sh`, so an upgrade from a
+pre-relocation install cannot leave Claude Code reading a stale `.claude/skills`. A real directory
+found there is moved aside to `<link>.bak`; if that fails, the installer exits non-zero rather than
+reporting success over content Claude Code cannot see.

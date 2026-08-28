@@ -75,7 +75,7 @@ Then append a **Registration checklist** (plain text, outside the code block):
 
 ```
 Registration:
-[ ] Save to .claude/skills/<name>/SKILL.md
+[ ] Save to skills/<name>/SKILL.md
 [ ] Add row to CLAUDE.md custom-skill table
 [ ] Add one-liner to memory/MEMORY.md hot tier
 [ ] Verify folder name matches `name:` frontmatter
@@ -86,4 +86,4 @@ Registration:
 ---
 
 ### Communication Protocol
-- **Default Notification**: "teach complete. Draft SKILL.md for `<name>` emitted ([N] lines). Invocation: <model|user>-invoked. Leading word: <word|none identified>. Fidelity gate: <PASS|cuts/flags>. Save path: `.claude/skills/<name>/SKILL.md`."
+- **Default Notification**: "teach complete. Draft SKILL.md for `<name>` emitted ([N] lines). Invocation: <model|user>-invoked. Leading word: <word|none identified>. Fidelity gate: <PASS|cuts/flags>. Save path: `skills/<name>/SKILL.md`."

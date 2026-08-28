@@ -147,6 +147,16 @@ prompt_packs() {
   done
 }
 
+# ── Point .claude/{skills,agents} at the plain-root canon ────────────────────
+# The kit's canon lives at skills/ and agents/ so no harness is structurally
+# privileged, but Claude Code only discovers them under .claude/. These links
+# bridge the two. Targets are RELATIVE (../skills, ../agents): an absolute
+# target would break git worktrees, which each need the link to resolve inside
+# their own checkout rather than back into the main one.
+install_canon_symlinks() {
+  harness_install_canon_symlinks .
+}
+
 # ── Install a single file using symlink or copy mode ─────────────────────────
 # Takes absolute src and relative dst (from project root). Used only by packs
 # (install_pack), which stay out of scope per ADR-0001 — do not repurpose for
@@ -424,6 +434,11 @@ main() {
 
   # Copy every MANIFEST path as real files (always overwrite — fresh install).
   harness_copy_manifest "$HARNESS_TEMP_DIR" "." "$manifest"
+
+  # Canon now lands at plain root (skills/, agents/); Claude Code still reads
+  # .claude/. Must run before install_pack so packs writing to .claude/agents/
+  # resolve through the link into agents/.
+  install_canon_symlinks
 
   install_claude
   install_settings

@@ -1,6 +1,6 @@
 #!/bin/sh
 # test-agent-template.sh — content assertions + negative controls for
-# .claude/agents/general-agent-template.md (T041).
+# agents/general-agent-template.md (T041).
 #
 # Validates (AC numbers from tasks/TASK_GUIDE_T041.md):
 #   AC1 — all four Karpathy principle names + a one-line operational command each, inline in
@@ -13,7 +13,7 @@
 #   AC4 — line 22's bare principles reference now resolves within the same file (implied
 #         by AC1: the content exists in this file, not just CLAUDE.md)
 #   AC5 — negative: CLAUDE.md is NOT added to the Mandatory Startup Sequence read list
-#   AC6 — negative: the string "ponytail" appears nowhere in .claude/agents/**
+#   AC6 — negative: the string "ponytail" appears nowhere in agents/**
 #   AC7 — negative: file grows by <=45 lines (87 -> <=132)
 #   AC8 — negative: backend.md / frontend.md / qa.md / common-infrastructure.md are
 #         byte-identical to HEAD (checksum, not visual inspection)
@@ -26,8 +26,8 @@
 set -eu
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-TEMPLATE="$ROOT/.claude/agents/general-agent-template.md"
-ROLE_GUIDES=".claude/agents/common-infrastructure.md .claude/agents/backend.md .claude/agents/frontend.md .claude/agents/qa.md"
+TEMPLATE="$ROOT/agents/general-agent-template.md"
+ROLE_GUIDES="agents/common-infrastructure.md agents/backend.md agents/frontend.md agents/qa.md"
 BASELINE_LINES=87
 BUDGET_LINES=132
 FAIL=0
@@ -153,11 +153,11 @@ else
   pass "AC5: CLAUDE.md not added to the Mandatory Startup Sequence"
 fi
 
-# --- AC6 (negative): "ponytail" nowhere in .claude/agents/** ------------------------
-if grep -riq 'ponytail' "$ROOT/.claude/agents/"; then
-  fail "AC6: the string 'ponytail' appears somewhere in .claude/agents/**"
+# --- AC6 (negative): "ponytail" nowhere in agents/** ------------------------
+if grep -riq 'ponytail' "$ROOT/agents/"; then
+  fail "AC6: the string 'ponytail' appears somewhere in agents/**"
 else
-  pass "AC6: 'ponytail' does not appear anywhere in .claude/agents/**"
+  pass "AC6: 'ponytail' does not appear anywhere in agents/**"
 fi
 
 # --- AC7 (negative): file grows by <=45 lines (87 -> <=132) ------------------------
@@ -171,7 +171,7 @@ fi
 # --- AC8 (negative): role guides byte-identical to HEAD -----------------------------
 if git -C "$ROOT" rev-parse --git-dir >/dev/null 2>&1; then
   for f in backend.md frontend.md qa.md common-infrastructure.md; do
-    path=".claude/agents/$f"
+    path="agents/$f"
     if git -C "$ROOT" cat-file -e "HEAD:$path" 2>/dev/null; then
       head_sum="$(git -C "$ROOT" show "HEAD:$path" | shasum -a 256 | awk '{print $1}')"
       cur_sum="$(shasum -a 256 "$ROOT/$path" | awk '{print $1}')"

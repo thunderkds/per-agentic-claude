@@ -3,7 +3,7 @@ T083 — drift test for site/index.html.
 
 The site's roster content (agents, skills, hooks, step limit) must never be
 hand-copied: every assertion here reads the source of truth at test time
-(`.claude/agents/*.md`, `.claude/skills/`, `.claude/settings.json`,
+(`agents/*.md`, `skills/`, `.claude/settings.json`,
 `pre_agent_step_limit.py`) rather than a hardcoded list. Adding a skill or
 agent without updating the page must fail this suite.
 
@@ -16,8 +16,8 @@ import re
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SITE_PAGE = os.path.join(ROOT, "site", "index.html")
-AGENTS_DIR = os.path.join(ROOT, ".claude", "agents")
-SKILLS_DIR = os.path.join(ROOT, ".claude", "skills")
+AGENTS_DIR = os.path.join(ROOT, "agents")
+SKILLS_DIR = os.path.join(ROOT, "skills")
 SETTINGS_PATH = os.path.join(ROOT, ".claude", "settings.json")
 STEP_LIMIT_HOOK = os.path.join(ROOT, ".claude", "hooks", "pre_agent_step_limit.py")
 

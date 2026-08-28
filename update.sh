@@ -13,6 +13,11 @@
 # Files never tracked in the lock, or new upstream files, are handled explicitly
 # (see below). The lock is then re-recorded to reflect what the user accepted.
 #
+# After the copy it re-establishes .claude/skills -> ../skills and
+# .claude/agents -> ../agents (DDR-0007) so Claude Code reads the canon this run
+# just refreshed; a pre-T096 real directory there is migrated aside, never
+# silently left in place.
+#
 # Refuses to run if the target is not a git repo, or if any MANIFEST path is a
 # symlink (an old symlink-model install) — it detects and refuses, it does NOT
 # auto-convert (migration is out of scope per ADR-0001).
@@ -355,6 +360,13 @@ main() {
   process_files "$lock" "$fresh_list" "$decisions" "$processed"
   carry_over_unprocessed "$lock" "$manifest" "$decisions" "$processed"
   write_new_lock "$decisions" "$lock"
+
+  # Re-point .claude/{skills,agents} at the freshly copied plain-root canon.
+  # MANIFEST ships the canon at plain root; nothing else in this run touches
+  # .claude/skills, so without this an install whose link is missing, stale, or
+  # a leftover real directory would keep serving Claude Code the old content.
+  # Fails the run (set -e) rather than reporting "Update complete" over it.
+  harness_install_canon_symlinks .
 
   log_info "Update complete. Re-recorded $lock"
 

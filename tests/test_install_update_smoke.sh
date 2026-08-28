@@ -135,9 +135,9 @@ fi
 # Scenario 3: a real local edit triggers update.sh's conflict prompt, both the
 # "overwrite" and "skip" sub-cases are exercised.
 # =============================================================================
-EDIT_FILE="$TARGET1/.claude/agents/qa.md"
+EDIT_FILE="$TARGET1/agents/qa.md"
 if [ ! -f "$EDIT_FILE" ]; then
-  fail "AC3 setup: expected editable file '.claude/agents/qa.md' not present after install"
+  fail "AC3 setup: expected editable file 'agents/qa.md' not present after install"
 else
   ORIGINAL_CONTENT=$(cat "$EDIT_FILE")
 

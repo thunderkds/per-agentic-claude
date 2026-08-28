@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""T078 — Agent Skills spec conformance gate over every skill in `.claude/skills/`.
+"""T078 — Agent Skills spec conformance gate over every skill in `skills/`.
 
 The 30 skills in this repo all satisfy the Agent Skills specification
 (https://agentskills.io/specification) today, but that compliance is *accidental*:
@@ -30,7 +30,7 @@ free-pass ("a negative-grep test free-passes when its file list is wrong",
 recorded in memory/learnings.md), `test_ac9_*` guards the discovery layer itself
 and comes first in this file.
 
-Symlinks: followed. `packs/` symlink skill directories into `.claude/skills/`
+Symlinks: followed. `packs/` symlink skill directories into `skills/`
 per CLAUDE.md, and those skills must be gated like any other. A *broken* symlink
 is not skipped — it is discovered and then fails loudly on the missing SKILL.md.
 
@@ -43,7 +43,7 @@ import pytest
 
 HOOKS_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REPO_ROOT = os.path.dirname(os.path.dirname(HOOKS_DIR))
-SKILLS_DIR = os.path.join(REPO_ROOT, ".claude", "skills")
+SKILLS_DIR = os.path.join(REPO_ROOT, "skills")
 
 # Spec constants. Named rather than inlined so a mutation to any one of them is
 # a single visible edit.
@@ -55,7 +55,7 @@ SKILL_MD_MAX_LINES = 500
 NAME_PATTERN = re.compile(r"^[a-z0-9-]+$")
 
 # Directory names that are never skills even if they sit directly under
-# `.claude/skills/`. Kept minimal on purpose: anything not listed here IS
+# `skills/`. Kept minimal on purpose: anything not listed here IS
 # treated as a skill and must carry a SKILL.md, so a stray folder fails loudly
 # instead of being silently skipped.
 NON_SKILL_DIRS = {"__pycache__", ".pytest_cache"}
@@ -180,7 +180,7 @@ def test_ac9_discovery_finds_at_least_one_skill():
 
 def test_ac9_discovery_includes_a_known_skill():
     """A root that exists but points somewhere wrong would still be non-empty.
-    Pin one skill known to live under `.claude/skills/`."""
+    Pin one skill known to live under `skills/`."""
     assert "write-better-skill" in SKILL_IDS, (
         "known skill 'write-better-skill' not among discovered skills %s — "
         "discovery root %s is wrong" % (SKILL_IDS, SKILLS_DIR)
@@ -210,7 +210,7 @@ def test_discovery_ignores_nested_non_skill_dirs():
 def test_skill_md_exists(skill_dir):
     path = os.path.join(skill_dir, "SKILL.md")
     assert os.path.isfile(path), (
-        "%s is a directory under .claude/skills/ with no SKILL.md — either it "
+        "%s is a directory under skills/ with no SKILL.md — either it "
         "is not a skill and does not belong here, or it is a broken skill"
         % os.path.basename(skill_dir)
     )

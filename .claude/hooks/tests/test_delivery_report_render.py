@@ -4,7 +4,7 @@ import sys
 
 HOOKS_TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(HOOKS_TESTS_DIR)))
-RENDER_PATH = os.path.join(ROOT, ".claude", "skills", "delivery-report", "render.py")
+RENDER_PATH = os.path.join(ROOT, "skills", "delivery-report", "render.py")
 
 spec = importlib.util.spec_from_file_location("delivery_report_render", RENDER_PATH)
 render_mod = importlib.util.module_from_spec(spec)

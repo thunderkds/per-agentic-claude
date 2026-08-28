@@ -11,7 +11,7 @@ section, which restates the spec):
 
   existence   a relative link target must exist on disk, resolved from the
               skill root (symlinked skill roots included — `packs/` symlinks
-              skills into `.claude/skills/`, and `os.path.exists` follows them)
+              skills into `skills/`, and `os.path.exists` follows them)
   depth       `references/REFERENCE.md` and `scripts/extract.py` are legal;
               anything two or more directories below the skill root is not, and
               neither is a `../` escape out of the skill
@@ -41,7 +41,7 @@ import pytest
 
 HOOKS_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REPO_ROOT = os.path.dirname(os.path.dirname(HOOKS_DIR))
-SKILLS_DIR = os.path.join(REPO_ROOT, ".claude", "skills")
+SKILLS_DIR = os.path.join(REPO_ROOT, "skills")
 
 # A relative link may sit at the skill root or one directory below it. One
 # separator is the whole rule; named so a mutation to it is a single edit.

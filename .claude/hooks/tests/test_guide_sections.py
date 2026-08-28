@@ -87,7 +87,7 @@ validate_guide = _load_by_path(
 )
 render_mod = _load_by_path(
     "delivery_report_render",
-    os.path.join(REPO_ROOT, ".claude", "skills", "delivery-report", "render.py"),
+    os.path.join(REPO_ROOT, "skills", "delivery-report", "render.py"),
 )
 
 
@@ -636,7 +636,7 @@ def test_ac11_negative_control_detects_each_token_form():
 # ==========================================================================
 
 def test_ac12_bugfix_skeleton_splits_the_same_two_sections():
-    skill = _read(os.path.join(REPO_ROOT, ".claude", "skills", "bugfix", "SKILL.md"))
+    skill = _read(os.path.join(REPO_ROOT, "skills", "bugfix", "SKILL.md"))
     assert "TASK_REVIEW_" in skill, "the bugfix skeleton never names the review file"
     evidence = _slice(skill, EVIDENCE_SLICE_RE)
     assert evidence, "`### Evidence` heading missing from the bugfix skeleton"
@@ -647,7 +647,7 @@ def test_ac12_bugfix_skeleton_splits_the_same_two_sections():
 def test_ac12_both_flavors_keep_identical_field_names():
     """The property delivery-report depends on to need no flavor branch."""
     review = _read(os.path.join(TEMPLATES_DIR, "TASK_REVIEW_template.md"))
-    bugfix = _read(os.path.join(REPO_ROOT, ".claude", "skills", "bugfix", "SKILL.md"))
+    bugfix = _read(os.path.join(REPO_ROOT, "skills", "bugfix", "SKILL.md"))
     fields = re.findall(r"\*\*(BEFORE|AFTER|DELTA|WITNESS)\*\*", review)
     assert fields == ["BEFORE", "AFTER", "DELTA", "WITNESS"]
     bugfix_review = bugfix[bugfix.index("TASK_REVIEW"):]
@@ -666,7 +666,7 @@ def test_ac12_gate_finds_the_verify_row_in_a_real_split_bugfix_pair(tmp_path):
     to the Supervisor rather than edited green.
     """
     review = _read(os.path.join(TEMPLATES_DIR, "TASK_REVIEW_template.md"))
-    bugfix = _read(os.path.join(REPO_ROOT, ".claude", "skills", "bugfix", "SKILL.md"))
+    bugfix = _read(os.path.join(REPO_ROOT, "skills", "bugfix", "SKILL.md"))
     extra_rows = [
         l for l in bugfix.splitlines()
         if l.startswith(("| Repro loop |", "| Regression test |", "| Smoke suite |"))
@@ -691,7 +691,7 @@ def test_ac12_gate_finds_the_verify_row_in_a_real_split_bugfix_pair(tmp_path):
 
 def test_ac13_craft_spawn_prompt_targets_the_review_file_by_absolute_path():
     skill = _read(
-        os.path.join(REPO_ROOT, ".claude", "skills", "craft-spawn-prompt", "SKILL.md")
+        os.path.join(REPO_ROOT, "skills", "craft-spawn-prompt", "SKILL.md")
     )
     element7 = skill[skill.index("Element 7"):]
     assert "TASK_REVIEW_" in element7, "element 7 still targets the guide's own section"

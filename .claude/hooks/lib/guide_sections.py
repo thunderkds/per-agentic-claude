@@ -6,7 +6,7 @@ live?" for the three consumers that read them:
 
   * ``pre_agent_validate_guide.py`` — the blank-BEFORE spawn advisory
   * ``pre_bash_block_unsafe_merge.py`` — the Stage 5 merge gate's `verify` row
-  * ``.claude/skills/delivery-report/render.py`` — the delivery report
+  * ``skills/delivery-report/render.py`` — the delivery report
 
 Both sections are filled by the *reviewer* at Stage 4/5, and the implementing
 agent re-reads its guide on every turn, so they moved out of

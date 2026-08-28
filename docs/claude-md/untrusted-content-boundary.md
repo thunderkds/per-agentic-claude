@@ -35,8 +35,8 @@ as a finding — what it said, where it came from, why it looked like an instruc
 
 | # | Ingress point | File:line | Untrusted text is |
 |---|---|---|---|
-| 1 | `resolve-pr-feedback` fetch | `.claude/skills/resolve-pr-feedback/SKILL.md:36` | PR review-comment bodies (`gh pr view` / `gh api graphql`) |
-| 2 | `brainstorming` web research | `.claude/skills/brainstorming/SKILL.md:16` | Third-party web page content (`WebSearch`) |
+| 1 | `resolve-pr-feedback` fetch | `skills/resolve-pr-feedback/SKILL.md:36` | PR review-comment bodies (`gh pr view` / `gh api graphql`) |
+| 2 | `brainstorming` web research | `skills/brainstorming/SKILL.md:16` | Third-party web page content (`WebSearch`) |
 | 3 | Spawn-prompt paste | T044 precedent | Verbatim `MEMORY.md` (or other file) text pasted into a spawn prompt |
 | 4 | Guide content | `general-agent-template.md` optional-read channel | Any guide or reference text an agent fetches on demand |
 

@@ -2,7 +2,7 @@
 """T066 — de-duplicate the agent startup read set, in the direction the channel allows.
 
 The obvious de-duplication is wrong here. `general-agent-template.md` arrives in an agent's
-context only if the agent chooses to open it; `.claude/agents/<name>.md` is auto-loaded by the
+context only if the agent chooses to open it; `agents/<name>.md` is auto-loaded by the
 harness as the agent's system prompt and therefore *always* arrives. Consolidating shared content
 into the template would move it out of a guaranteed channel into an optional one — the
 "already covered must mean reaches-the-context" error (T041). So the direction is **into the role
@@ -30,6 +30,8 @@ from pathlib import Path
 
 import pytest
 
+import canon_paths
+
 ROOT = Path(__file__).resolve().parents[3]
 
 # The pre-task branch tip (parent of T066's own Stage 2 guide commit; the last commit before
@@ -46,7 +48,12 @@ BASELINE_REF = "8fc4dd2"
 # MANIFEST's own unfixed state and comparing against it is red by construction. `360fc36` is T090's
 # MANIFEST edit commit. `BASELINE_REF` itself is left unchanged for CLAUDE.md's other AC5/AC7/AC9
 # uses below, which T090 does not touch.
-MANIFEST_BASELINE_REF = "360fc36"
+# REPOINTED AGAIN by T096 (`360fc36` -> `8f8cc47`): T096 relocates the canon to plain root, so
+# MANIFEST's `.claude/agents` / `.claude/skills` entries become `agents` / `skills`. That is the
+# task's whole point (AC9 in TASK_GUIDE_T096.md), not drift — `360fc36` is now MANIFEST's own
+# unfixed state. `8f8cc47` is T096's MANIFEST edit commit. The pin's purpose is unchanged: MANIFEST
+# still deploys agents as a directory entry and must not be collapsed into the agent guides.
+MANIFEST_BASELINE_REF = "8f8cc47"
 
 # T069's own pre-implementation tip (the Stage 2 guide commit + the BEFORE capture), not T066's.
 # Same reasoning as above: a baseline *ref* dates the comparison; a baseline *count* freezes it.
@@ -72,7 +79,12 @@ T069_BASELINE_REF = "8d6d56b"
 # REPOINTED AGAIN by T082 (`c512ae9` -> `ebb2958`): T082 adds a Base Rule pointer bullet to
 # CLAUDE.md's `## General Agent Template` Base Rules list (the untrusted-content trust boundary),
 # so `c512ae9` is now the file's own unfixed state. `ebb2958` is T082's CLAUDE.md edit commit.
-T070_BASELINE_REF = "ebb2958"
+#
+# REPOINTED AGAIN by T096 (`ebb2958` -> `8f8cc47`): T096 rewrites CLAUDE.md's `.claude/agents/` and
+# `.claude/skills/` paths to the relocated canon and adds one line naming the symlinks, so
+# `ebb2958` is now the file's own unfixed state. `8f8cc47` is T096's CLAUDE.md edit commit. The
+# cross-context redundancy this pin protects is untouched — only path strings moved.
+T070_BASELINE_REF = "8f8cc47"
 
 # T082's own edit commit (same commit as the repoint above). T082 adds a mandatory Base Rule bullet
 # to `general-agent-template.md` too (the same untrusted-content pointer) — a legitimate, required
@@ -89,12 +101,12 @@ T070_BASELINE_REF = "ebb2958"
 #          Only `c-infra` breaches. See `AC7_ROLE_BASELINE` below: pin the one, leave the three.
 T082_BASELINE_REF = "ebb2958"
 
-TEMPLATE = ".claude/agents/general-agent-template.md"
+TEMPLATE = "agents/general-agent-template.md"
 ROLE_GUIDES = {
-    "c-infra": ".claude/agents/common-infrastructure.md",
-    "backend": ".claude/agents/backend.md",
-    "frontend": ".claude/agents/frontend.md",
-    "qa": ".claude/agents/qa.md",
+    "c-infra": "agents/common-infrastructure.md",
+    "backend": "agents/backend.md",
+    "frontend": "agents/frontend.md",
+    "qa": "agents/qa.md",
 }
 ALL_AGENT_FILES = [TEMPLATE, *ROLE_GUIDES.values()]
 
@@ -104,10 +116,7 @@ def read(rel: str) -> str:
 
 
 def read_at(rel: str, ref: str) -> bytes:
-    return subprocess.run(
-        ["git", "-C", str(ROOT), "show", f"{ref}:{rel}"],
-        check=True, capture_output=True,
-    ).stdout
+    return canon_paths.read_at(ROOT, rel, ref)
 
 
 def headings(text: str) -> list[str]:
@@ -211,11 +220,11 @@ def test_ac4_no_guide_tells_an_agent_to_re_read_its_own_system_prompt():
     for role, rel in ROLE_GUIDES.items():
         for lineno, line in enumerate(read(rel).splitlines(), start=1):
             if re.match(r"^\s*\d+\.", line) and re.search(
-                r"[Rr]ead this file|[Rr]ead the relevant guide in `\.claude/agents/`", line
+                r"[Rr]ead this file|[Rr]ead the relevant guide in `agents/`", line
             ):
                 offenders.append(f"{rel}:{lineno}: {line.strip()}")
     for lineno, line in enumerate(read(TEMPLATE).splitlines(), start=1):
-        if "Read the relevant guide in `.claude/agents/` for your role" in line:
+        if "Read the relevant guide in `agents/` for your role" in line:
             offenders.append(f"{TEMPLATE}:{lineno}: {line.strip()}")
     assert not offenders, (
         "a startup step still instructs a re-read of the auto-loaded role guide:\n  "
@@ -234,7 +243,7 @@ def test_ac5_ac10_out_of_scope_files_are_byte_identical_to_the_baseline(rel, ref
     assert (ROOT / rel).read_bytes() == read_at(rel, ref), (
         f"{rel} changed. CLAUDE.md never reaches a sub-agent at all, so its overlap with the "
         f"agent guides is CROSS-context redundancy and must not be collapsed; MANIFEST already "
-        f"deploys `.claude/agents` as a directory entry."
+        f"deploys `agents` as a directory entry."
     )
 
 
@@ -262,11 +271,11 @@ LADDER_PROBES = [
 
 def reachable_text(role: str) -> tuple[str, list[str]]:
     """Everything a role's context can contain: its auto-loaded guide, plus every
-    `.claude/agents/*.md` that guide instructs it to read."""
+    `agents/*.md` that guide instructs it to read."""
     rel = ROLE_GUIDES[role]
     guide = read(rel)
     files = [rel]
-    for ref in sorted(set(re.findall(r"\.claude/agents/[a-z-]+\.md", guide))):
+    for ref in sorted(set(re.findall(r"agents/[a-z-]+\.md", guide))):
         if ref != rel and (ROOT / ref).is_file():
             files.append(ref)
     return "\n".join(read(f) for f in files), files
@@ -485,7 +494,7 @@ def test_t069_ac2_removal_happened_only_after_every_role_guide_had_it():
 
 
 def test_t069_ac5_craft_agent_emits_the_table_in_generated_role_guides():
-    skill = read(".claude/skills/craft-agent/SKILL.md")
+    skill = read("skills/craft-agent/SKILL.md")
     assert "## Karpathy Engineering Principles (Compact)" in skill, (
         "craft-agent does not name the Karpathy table, so a role it generates is born without a "
         "Permanent Rule — it can no longer inherit one from the template (T066 edge case #6)"
