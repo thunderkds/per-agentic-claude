@@ -23,14 +23,14 @@ Skill({ skill: "delivery-report", args: "task=T053 guide=tasks/TASK_GUIDE_T053.m
 
 #### 1. Run the renderer
 
-The parser and rendering logic live in one place — `.claude/skills/delivery-report/render.py` — so
+The parser and rendering logic live in one place — `skills/delivery-report/render.py` — so
 the same code path serves **both** guide flavors (implementation and bugfix). T053 gave both flavors
 identical Demonstration field names and ordering specifically so this renderer never needs a
 flavor-specific branch. If you find yourself about to special-case a flavor here, stop — that means
 the two block shapes have drifted apart, and it's a Supervisor decision, not a workaround.
 
 ```bash
-python3 .claude/skills/delivery-report/render.py <TASK_ID> <guide-path> <branch>
+python3 skills/delivery-report/render.py <TASK_ID> <guide-path> <branch>
 ```
 
 This prints the complete rendered HTML to stdout and the save path (`reports/delivery-report_<branch>_<timestamp>.html`)

@@ -40,12 +40,12 @@ NO_CLONE="$WORK/should-not-exist-supervisor"
 
 # ── Build a minimal fixture "harness" repo to be cloned by setup.sh ───────────
 FIXTURE="$WORK/fixture-repo"
-mkdir -p "$FIXTURE/.claude/agents" \
-         "$FIXTURE/.claude/skills/brainstorming" \
+mkdir -p "$FIXTURE/agents" \
+         "$FIXTURE/skills/brainstorming" \
          "$FIXTURE/.claude/hooks" \
          "$FIXTURE/templates"
-printf 'backend-agent-content\n'  > "$FIXTURE/.claude/agents/backend.md"
-printf 'skill-content\n'          > "$FIXTURE/.claude/skills/brainstorming/SKILL.md"
+printf 'backend-agent-content\n'  > "$FIXTURE/agents/backend.md"
+printf 'skill-content\n'          > "$FIXTURE/skills/brainstorming/SKILL.md"
 printf 'hook-content\n'           > "$FIXTURE/.claude/hooks/example_hook.py"
 printf 'template-content\n'       > "$FIXTURE/templates/PRD_template.md"
 printf '{ "hooks": {} }\n'        > "$FIXTURE/.claude/settings.json"
@@ -53,8 +53,8 @@ printf 'GREENFIELD SUPERVISOR RULES\n' > "$FIXTURE/CLAUDE.md"
 printf 'BROWNFIELD SUPERVISOR RULES\n' > "$FIXTURE/CLAUDE_LEGACY.md"
 cat > "$FIXTURE/MANIFEST" <<'EOF'
 # fixture MANIFEST
-.claude/agents
-.claude/skills
+agents
+skills
 .claude/hooks
 templates
 EOF
@@ -91,8 +91,8 @@ else
   cat "$WORK/setup.log" >&2
 fi
 
-if [ -f "$TARGET1/.claude/agents/backend.md" ] \
-   && [ -f "$TARGET1/.claude/skills/brainstorming/SKILL.md" ] \
+if [ -f "$TARGET1/agents/backend.md" ] \
+   && [ -f "$TARGET1/skills/brainstorming/SKILL.md" ] \
    && [ -f "$TARGET1/.claude/hooks/example_hook.py" ] \
    && [ -f "$TARGET1/templates/PRD_template.md" ]; then
   pass "test1: all MANIFEST paths installed"
@@ -101,8 +101,8 @@ else
 fi
 
 # Real copies, not symlinks (AC #1).
-if [ ! -L "$TARGET1/.claude/agents" ] \
-   && [ ! -L "$TARGET1/.claude/agents/backend.md" ] \
+if [ ! -L "$TARGET1/agents" ] \
+   && [ ! -L "$TARGET1/agents/backend.md" ] \
    && [ ! -L "$TARGET1/CLAUDE.md" ]; then
   pass "test1: installed entries are real files, not symlinks"
 else
@@ -133,7 +133,7 @@ else
 fi
 
 if grep -q '"files"' "$LOCK" 2>/dev/null \
-   && grep -q '".claude/agents/backend.md"' "$LOCK" 2>/dev/null \
+   && grep -q '"agents/backend.md"' "$LOCK" 2>/dev/null \
    && grep -q '"templates/PRD_template.md"' "$LOCK" 2>/dev/null \
    && grep -q '"CLAUDE.md"' "$LOCK" 2>/dev/null; then
   pass "test1: harness-lock.json contains a hash entry per installed file"
@@ -142,7 +142,7 @@ else
 fi
 
 # Recorded hash matches the actual installed file content (content-only, permission-independent).
-EXPECTED_HASH=$(sha256sum "$TARGET1/.claude/agents/backend.md" | awk '{print $1}')
+EXPECTED_HASH=$(sha256sum "$TARGET1/agents/backend.md" | awk '{print $1}')
 if grep -q "$EXPECTED_HASH" "$LOCK" 2>/dev/null; then
   pass "test1: recorded hash matches installed file content"
 else
@@ -150,8 +150,8 @@ else
 fi
 
 # A chmod-only change must NOT change the recorded hash (edge-case checklist).
-chmod 600 "$TARGET1/.claude/agents/backend.md"
-REHASH=$(sha256sum "$TARGET1/.claude/agents/backend.md" | awk '{print $1}')
+chmod 600 "$TARGET1/agents/backend.md"
+REHASH=$(sha256sum "$TARGET1/agents/backend.md" | awk '{print $1}')
 if [ "$REHASH" = "$EXPECTED_HASH" ]; then
   pass "test1: hash is permission-independent (chmod does not alter it)"
 else
@@ -196,7 +196,7 @@ fi
 # Test 3 — re-run overwrites edited files unconditionally (AC #4)
 # =============================================================================
 # Corrupt an installed file, then re-run setup.sh and expect it restored.
-printf 'USER LOCAL EDIT — should be clobbered\n' > "$TARGET1/.claude/agents/backend.md"
+printf 'USER LOCAL EDIT — should be clobbered\n' > "$TARGET1/agents/backend.md"
 
 T3_RC=0
 run_setup "$TARGET1" || T3_RC=$?
@@ -207,8 +207,8 @@ else
   fail "test3: setup.sh re-run returned non-zero ($T3_RC)"
 fi
 
-if grep -q 'backend-agent-content' "$TARGET1/.claude/agents/backend.md" \
-   && ! grep -q 'USER LOCAL EDIT' "$TARGET1/.claude/agents/backend.md"; then
+if grep -q 'backend-agent-content' "$TARGET1/agents/backend.md" \
+   && ! grep -q 'USER LOCAL EDIT' "$TARGET1/agents/backend.md"; then
   pass "test3: edited file overwritten back to upstream (always-overwrite)"
 else
   fail "test3: edited file was not overwritten on re-run"

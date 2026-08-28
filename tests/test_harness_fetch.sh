@@ -35,12 +35,12 @@ FIXTURE="$WORK/fixture-repo"
 mkdir -p "$FIXTURE"
 
 # ── Build a minimal fixture harness repo ─────────────────────────────────────
-mkdir -p "$FIXTURE/.claude/agents" "$FIXTURE/templates"
-printf 'agent-content\n'    > "$FIXTURE/.claude/agents/foo.md"
+mkdir -p "$FIXTURE/agents" "$FIXTURE/templates"
+printf 'agent-content\n'    > "$FIXTURE/agents/foo.md"
 printf 'template-content\n' > "$FIXTURE/templates/bar.md"
 cat > "$FIXTURE/MANIFEST" <<'EOF'
 # fixture MANIFEST
-.claude/agents
+agents
 templates
 # entry intentionally absent from the clone (must warn + skip, not abort)
 does/not/exist
@@ -73,13 +73,13 @@ REPO_URL="file://$FIXTURE" TARGET1="$TARGET1" PATHFILE1="$PATHFILE1" \
   && pass "test1: fetch/copy pipeline exited 0" \
   || fail "test1: fetch/copy pipeline returned non-zero"
 
-if [ -f "$TARGET1/.claude/agents/foo.md" ] && [ -f "$TARGET1/templates/bar.md" ]; then
+if [ -f "$TARGET1/agents/foo.md" ] && [ -f "$TARGET1/templates/bar.md" ]; then
   pass "test1: MANIFEST paths copied into target"
 else
   fail "test1: expected copied files missing in target"
 fi
 
-if [ ! -L "$TARGET1/.claude/agents" ] && [ ! -L "$TARGET1/.claude/agents/foo.md" ]; then
+if [ ! -L "$TARGET1/agents" ] && [ ! -L "$TARGET1/agents/foo.md" ]; then
   pass "test1: copied entries are real files, not symlinks"
 else
   fail "test1: copied entry is a symlink (expected real copy)"

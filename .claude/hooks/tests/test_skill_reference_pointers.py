@@ -11,7 +11,7 @@ section, which restates the spec):
 
   existence   a relative link target must exist on disk, resolved from the
               skill root (symlinked skill roots included — `packs/` symlinks
-              skills into `.claude/skills/`, and `os.path.exists` follows them)
+              skills into `skills/`, and `os.path.exists` follows them)
   depth       `references/REFERENCE.md` and `scripts/extract.py` are legal;
               anything two or more directories below the skill root is not, and
               neither is a `../` escape out of the skill

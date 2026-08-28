@@ -44,7 +44,7 @@ triggers.
 
 *Should-not-trigger* queries must be **near-misses**: they share keywords or concepts but need
 something else. For a skill about writing SKILL.md files, "write a fibonacci function" tests
-nothing. "Draft a sub-agent definition for `.claude/agents/`" is a real negative — same repo, same
+nothing. "Draft a sub-agent definition for `agents/`" is a real negative — same repo, same
 authoring verb, different artifact and a different skill (`craft-agent`) owns it.
 
 Write queries the way users actually type: real paths, personal context ("my supervisor asked

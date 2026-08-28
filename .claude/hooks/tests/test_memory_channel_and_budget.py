@@ -59,17 +59,17 @@ SHIPPING_FILES = [
     "docs/claude-md/code-naming-conventions.md",
     "docs/claude-md/phase0-project-initiation.md",
     "memory/MEMORY.md",
-    ".claude/skills/craft-spawn-prompt/SKILL.md",
-    ".claude/skills/compact-memory/SKILL.md",
-    ".claude/skills/compact-advisor/SKILL.md",
-    ".claude/skills/bugfix/SKILL.md",
-    ".claude/skills/wake/SKILL.md",
-    ".claude/skills/learn/SKILL.md",
-    ".claude/agents/general-agent-template.md",
-    ".claude/agents/common-infrastructure.md",
-    ".claude/agents/backend.md",
-    ".claude/agents/frontend.md",
-    ".claude/agents/qa.md",
+    "skills/craft-spawn-prompt/SKILL.md",
+    "skills/compact-memory/SKILL.md",
+    "skills/compact-advisor/SKILL.md",
+    "skills/bugfix/SKILL.md",
+    "skills/wake/SKILL.md",
+    "skills/learn/SKILL.md",
+    "agents/general-agent-template.md",
+    "agents/common-infrastructure.md",
+    "agents/backend.md",
+    "agents/frontend.md",
+    "agents/qa.md",
     ".claude/hooks/post_bash_memory_update.py",
     ".claude/hooks/post_agent_move_to_review.py",
 ]
@@ -186,7 +186,7 @@ def test_ac9_exclusion_is_by_content_and_the_excluded_lines_really_exist():
 
 def test_ac5_and_ac6_the_contract_now_states_the_path_channel():
     """Positive counterpart to AC7 — absence of the old claim is not presence of the new one."""
-    skill = _read(".claude/skills/craft-spawn-prompt/SKILL.md")
+    skill = _read("skills/craft-spawn-prompt/SKILL.md")
     assert "The **path** `memory/MEMORY.md`" in skill
     assert "Do **not** paste its contents" in skill
 
@@ -195,7 +195,7 @@ def test_ac5_and_ac6_the_contract_now_states_the_path_channel():
         "pipeline-stages.md must invert the old 'must not re-read it' sentence (AC6)"
     )
 
-    template = _read(".claude/agents/general-agent-template.md")
+    template = _read("agents/general-agent-template.md")
     assert "read `memory/MEMORY.md` yourself" in template
 
 

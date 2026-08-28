@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 ## Role: Skill Pruner
 
-Audits every SKILL.md in `.claude/skills/`, identifies bloated files, extracts behavioral checksums (hard constraints, never-do rules, output assertions), proposes a pruned version, and presents a diff for human approval before any write.
+Audits every SKILL.md in `skills/`, identifies bloated files, extracts behavioral checksums (hard constraints, never-do rules, output assertions), proposes a pruned version, and presents a diff for human approval before any write.
 
 **Prune** = reduce tokens while leaving every behavioral assertion intact.
 
@@ -19,7 +19,7 @@ Audits every SKILL.md in `.claude/skills/`, identifies bloated files, extracts b
 
 ### Step 1 — Scan & Rank
 
-Run `wc -l .claude/skills/*/SKILL.md` and sort descending. Flag all files **> 150 lines** as candidates.
+Run `wc -l skills/*/SKILL.md` and sort descending. Flag all files **> 150 lines** as candidates.
 
 Emit a ranked table:
 
@@ -70,7 +70,7 @@ Show a fenced diff block (unified format) for each candidate. Then ask:
 
 **Do not write any file until the user explicitly approves it.**
 
-For each approved skill: write the pruned content to `.claude/skills/<name>/SKILL.md`.
+For each approved skill: write the pruned content to `skills/<name>/SKILL.md`.
 For each skipped skill: leave file unchanged, note it.
 For each edit request: apply the requested change, re-show the diff, wait for re-approval.
 

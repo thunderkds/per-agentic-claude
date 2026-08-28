@@ -1,5 +1,5 @@
 ---
-name: [kebab-case-name]   # must match the folder: .claude/skills/[name]/SKILL.md
+name: [kebab-case-name]   # must match the folder: skills/[name]/SKILL.md
 description: [One or two sentences. State WHAT it does and WHEN to use it — this is the only text Claude sees when deciding whether to trigger the skill. Name the pipeline stage (e.g. "Use during Stage 3 …"). Self-contained; no external CLI unless unavoidable.]
 ---
 

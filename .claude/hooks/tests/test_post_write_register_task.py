@@ -72,19 +72,19 @@ def test_extracts_agent_when_agent_guide_line_precedes_in_scan_order():
     # alternative could latch onto the wrong line.
     guide = (
         "**Assigned agent**: backend-developer\n"
-        "**Agent guide**: `.claude/agents/backend.md`\n"
+        "**Agent guide**: `agents/backend.md`\n"
     )
     assert extract_agent(guide) == "backend-developer"
 
 
 def test_extracts_agent_regardless_of_line_order():
     guide = (
-        "**Agent guide**: `.claude/agents/backend.md`\n"
+        "**Agent guide**: `agents/backend.md`\n"
         "**Assigned agent**: qa-expert\n"
     )
     assert extract_agent(guide) == "qa-expert"
 
 
 def test_falls_back_to_default_when_no_assigned_agent_line_present():
-    guide = "**Agent guide**: `.claude/agents/backend.md`\n"
+    guide = "**Agent guide**: `agents/backend.md`\n"
     assert extract_agent(guide) == "backend-developer"

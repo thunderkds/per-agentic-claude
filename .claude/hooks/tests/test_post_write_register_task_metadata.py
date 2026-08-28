@@ -272,7 +272,7 @@ TITLE_AND_AGENT_REGRESSION_GUIDE = """# TASK_GUIDE — T904: Title And Agent Reg
 **Risk Level**: Low
 **Priority**: P2
 **Assigned agent**: qa-expert
-**Agent guide**: `.claude/agents/qa.md`
+**Agent guide**: `agents/qa.md`
 
 ## Requirement
 Synthetic fixture guarding the T018/T024 title and agent extraction fixes.

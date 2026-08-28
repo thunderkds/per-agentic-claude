@@ -93,7 +93,7 @@ Run these **one by one**. After each session, summarize findings, ask for user c
 
 2. **Task Analysis & Brainstorming**
    - Clarify requirements and declare **Risk Level** (see [Risk Level Criteria](#risk-level-criteria)).
-   - **Mandatory Hook**: If Risk is **Medium or High**, invoke the `brainstorming` skill (`.claude/skills/brainstorming/SKILL.md`) first to:
+   - **Mandatory Hook**: If Risk is **Medium or High**, invoke the `brainstorming` skill (`skills/brainstorming/SKILL.md`) first to:
      - Identify "non-invasive" fixes that avoid touching core legacy logic.
      - Brainstorm regression risks for legacy features listed in `risk-hotspots.md`.
    - Define final acceptance criteria only after the brainstorming log is reviewed.
@@ -109,7 +109,7 @@ Run these **one by one**. After each session, summarize findings, ask for user c
 
    Add optional agents as needed:
    - `frontend-implementer.md` — Angular/TypeScript UI changes
-   - `brainstorming` skill (`.claude/skills/brainstorming/SKILL.md`) — risk analysis (required for Medium/High tasks)
+   - `brainstorming` skill (`skills/brainstorming/SKILL.md`) — risk analysis (required for Medium/High tasks)
 
    Reference `docs/legacy/` in every agent prompt.
 
@@ -214,7 +214,7 @@ Run these **one by one**. After each session, summarize findings, ask for user c
 
 **Mandatory Folder Structure**:
 - `agents/` (general-agent-template.md, backend-implementer.md, frontend-implementer.md, common-infrastructure.md, qa-automation.md)
-- `.claude/skills/` — custom project skills (auto-discovered by Claude Code):
+- `skills/` — custom project skills (auto-discovered by Claude Code):
   - `brainstorming/SKILL.md` — divergent exploration; now includes scope tiers, one-question-per-turn, visual probe gate, claim verification
   - `wake/SKILL.md` — mandatory cold-start session briefing (reads git/KANBAN/MEMORY/LRs)
   - `learn/SKILL.md` — inline reflection; writes Learning Records to `memory/learning-records/`
@@ -376,7 +376,7 @@ Every agent prompt **must** include these sections:
 
 ---
 
-### Brainstorming Skill (`.claude/skills/brainstorming/SKILL.md`)
+### Brainstorming Skill (`skills/brainstorming/SKILL.md`)
 
 ```markdown
 ## Role

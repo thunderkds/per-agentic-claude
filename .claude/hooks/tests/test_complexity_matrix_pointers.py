@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """T070 — the surviving Complexity-matrix pointers must name the channel that carries it.
 
-T066 moved the C0–C3 Complexity matrix out of `.claude/agents/general-agent-template.md` and into
+T066 moved the C0–C3 Complexity matrix out of `agents/general-agent-template.md` and into
 each role guide, which is the channel the harness auto-loads as an agent's system prompt. Three
 shipping files kept pointing at the file the matrix left:
 
@@ -29,6 +29,8 @@ import pytest
 
 from pathlib import Path
 
+import canon_paths
+
 # Resolve from __file__, never from the cwd: one pre-existing suite test resolves a path
 # cwd-relative and therefore reads green from the repo root and red from `.claude/hooks/`.
 ROOT = Path(__file__).resolve().parents[3]
@@ -42,10 +44,10 @@ POINTER_FILES = [
 
 # The channel that actually carries the matrix since T066.
 ROLE_GUIDES = [
-    ".claude/agents/common-infrastructure.md",
-    ".claude/agents/backend.md",
-    ".claude/agents/frontend.md",
-    ".claude/agents/qa.md",
+    "agents/common-infrastructure.md",
+    "agents/backend.md",
+    "agents/frontend.md",
+    "agents/qa.md",
 ]
 
 RETIRED_TARGET = "general-agent-template.md"
@@ -58,12 +60,15 @@ MATRIX_SECTION = "## Complexity & escalation"
 T070_BASELINE_REF = "9f3f2e9"
 
 # The exact clause the three shipping files retire, and which the historical record must keep.
+# NOT rewritten by T096: this string is grepped against tasks/ and memory/ at a pre-move ref, so it
+# must stay spelled the way those files spell it. Repointing it at the post-T096 path would make the
+# grep match nothing and every assertion below pass vacuously.
 RETIRED_CLAUSE = "Complexity matrix in `.claude/agents/general-agent-template.md`"
 
 # Must-not-touch AND genuinely frozen: a completed-work review record that no future stage writes
 # to, so bytes are the strongest available assertion.
 #
-# `README.md` and `.claude/agents/general-agent-template.md` were byte-pinned here too until the
+# `README.md` and `agents/general-agent-template.md` were byte-pinned here too until the
 # Stage 4 review (P2) removed them. They are on T070's must-not-touch list, but they are *living*
 # files — the template was rewritten by T041, T051, T065, T066 and T069, and the README by T065 and
 # `304e6e6` — so a standing byte-pin would go RED on the next legitimate edit and force the repoint
@@ -80,7 +85,7 @@ FROZEN_PATHS = [
 # went rather than pointing stalely at the file it left.
 ALREADY_CORRECT_FILES = [
     "README.md",
-    ".claude/agents/general-agent-template.md",
+    "agents/general-agent-template.md",
 ]
 
 # Where the old wording is the historical record and must survive verbatim.
@@ -146,9 +151,7 @@ def _git(*args: str) -> str:
 
 
 def _read_at(rel: str, ref: str) -> bytes:
-    return subprocess.run(
-        ["git", "-C", str(ROOT), "show", f"{ref}:{rel}"], check=True, capture_output=True
-    ).stdout
+    return canon_paths.read_at(ROOT, rel, ref)
 
 
 def _historical_carriers() -> list[str]:

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """T055 — bugfix Evidence-table parity with the gate-visible implementation shape.
 
-Before this task, `.claude/skills/bugfix/SKILL.md`'s Step 3 guide skeleton produced a 3-row
+Before this task, `skills/bugfix/SKILL.md`'s Step 3 guide skeleton produced a 3-row
 free-text Evidence table with no `verify` row at all. `pre_bash_block_unsafe_merge.py`'s merge
 gate scans a task guide for a row whose Check cell is `verify` and whose *Notes* column contains
 the word "pass" (T026: two compounding bugs — wrong check-column text, and "pass" checked in the

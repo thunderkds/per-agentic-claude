@@ -137,7 +137,7 @@ def test_every_adapter_points_at_claude_md_as_canonical():
     for adapter_name, path in ADAPTERS.items():
         text = _read(path)
         assert "CLAUDE.md" in text and "canonical" in text, (
-            f"{adapter_name} does not state that CLAUDE.md / .claude/agents/ remain canonical"
+            f"{adapter_name} does not state that CLAUDE.md / agents/ remain canonical"
         )
 
 

@@ -34,16 +34,18 @@ from pathlib import Path
 
 import pytest
 
+import canon_paths
+
 ROOT = Path(__file__).resolve().parents[3]
 
 # The branch base — the last commit before T071 touched anything. Pinned, not `HEAD`.
 PRE_TASK_REF = "b69410c"
 
 ROLE_GUIDES = {
-    "backend": ".claude/agents/backend.md",
-    "frontend": ".claude/agents/frontend.md",
-    "c-infra": ".claude/agents/common-infrastructure.md",
-    "qa": ".claude/agents/qa.md",
+    "backend": "agents/backend.md",
+    "frontend": "agents/frontend.md",
+    "c-infra": "agents/common-infrastructure.md",
+    "qa": "agents/qa.md",
 }
 TASK_GUIDE_TEMPLATE = "templates/TASK_GUIDE_template.md"
 SECTION_HEADING = "## Simplicity First (your defining constraint)"
@@ -53,10 +55,10 @@ SECTION_HEADING = "## Simplicity First (your defining constraint)"
 # so this is a ceiling with slack, never an equality, and it is expected to be retired or
 # repointed after review.
 LINE_CAPS = {
-    ".claude/agents/backend.md": 145,
-    ".claude/agents/frontend.md": 142,
-    ".claude/agents/common-infrastructure.md": 137,
-    ".claude/agents/qa.md": 129,
+    "agents/backend.md": 145,
+    "agents/frontend.md": 142,
+    "agents/common-infrastructure.md": 137,
+    "agents/qa.md": 129,
     "CLAUDE.md": 200,
     TASK_GUIDE_TEMPLATE: 197,
 }
@@ -70,10 +72,7 @@ def read(rel: str) -> str:
 
 
 def read_at(rel: str, ref: str) -> bytes:
-    return subprocess.run(
-        ["git", "-C", str(ROOT), "show", f"{ref}:{rel}"],
-        check=True, capture_output=True,
-    ).stdout
+    return canon_paths.read_at(ROOT, rel, ref)
 
 
 def section(text: str, heading: str) -> str:

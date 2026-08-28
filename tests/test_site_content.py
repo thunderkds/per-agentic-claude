@@ -3,7 +3,7 @@ T083 — drift test for site/index.html.
 
 The site's roster content (agents, skills, hooks, step limit) must never be
 hand-copied: every assertion here reads the source of truth at test time
-(`.claude/agents/*.md`, `.claude/skills/`, `.claude/settings.json`,
+(`agents/*.md`, `skills/`, `.claude/settings.json`,
 `pre_agent_step_limit.py`) rather than a hardcoded list. Adding a skill or
 agent without updating the page must fail this suite.
 

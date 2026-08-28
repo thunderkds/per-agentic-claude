@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """T058 — `diagnose` Phase 4 is an evidence-driven instrumentation loop, not a preference sentence.
 
-Before this task, `.claude/skills/diagnose/SKILL.md`'s `### Phase 4 — Instrument` was a single
+Before this task, `skills/diagnose/SKILL.md`'s `### Phase 4 — Instrument` was a single
 line ranking instrument types by preference (`debugger/REPL > targeted boundary logs > ...`,
 `Tag logs [DEBUG-xxxx]`). It never said what to log, in what format, how many probes, how a probe
 ties back to a Phase 3 hypothesis, or when instrumentation may be removed.
