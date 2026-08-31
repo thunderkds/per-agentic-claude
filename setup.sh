@@ -90,17 +90,25 @@ PACKS=""  # space-separated list of packs to install (e.g. " mobile data")
 # be applied AFTER parsing; it becomes "claude" (today's behaviour) below.
 HARNESSES=""
 VALID_HARNESSES="claude codex"
+# EXPECT_HARNESS carries the "previous arg was a bare --harness" state into the
+# catch-all branch, so the value of `--harness <name>` is consumed there rather
+# than by a pre-case guard — that keeps `case "$arg" in` adjacent to the loop
+# header, which tests/test_pack_docs_flags.py parses to enumerate valid flags.
 EXPECT_HARNESS=0
 for arg in "$@"; do
-  if [ "$EXPECT_HARNESS" -eq 1 ]; then
-    HARNESSES="$HARNESSES $arg"; EXPECT_HARNESS=0; continue
-  fi
   case "$arg" in
     --copy) USE_COPY=1 ;;
     --pack=*) pack_val="${arg#--pack=}"; PACKS="$PACKS $pack_val" ;;
     --harness) EXPECT_HARNESS=1 ;;
     --harness=*) HARNESSES="$HARNESSES ${arg#--harness=}" ;;
-    *) log_error "Unknown flag: $arg. Valid flags: --copy, --pack=<name>, --harness <name>"; exit 1 ;;
+    *)
+      if [ "$EXPECT_HARNESS" -eq 1 ]; then
+        HARNESSES="$HARNESSES $arg"; EXPECT_HARNESS=0
+      else
+        log_error "Unknown flag: $arg. Valid flags: --copy, --pack=<name>, --harness <name>"
+        exit 1
+      fi
+      ;;
   esac
 done
 if [ "$EXPECT_HARNESS" -eq 1 ]; then
