@@ -188,6 +188,15 @@ harness_manifest_dest() {
 # with it off. It is not a supported way to install oversize skills.
 harness_skill_body_cap() {
   if [ -n "${HARNESS_SKILL_BODY_CAP:-}" ]; then
+    # Validate the override (Stage 4 P2). An unvalidated value reaches
+    # `[ "$_cap" -gt 0 ]`, which errors and falls FALSE — silently disabling the
+    # cap and installing an oversize skill, the exact invisible outcome the cap
+    # exists to prevent. Fail loudly by name instead.
+    case "$HARNESS_SKILL_BODY_CAP" in
+      *[!0-9]*|'')
+        _harness_log_error "HARNESS_SKILL_BODY_CAP must be a non-negative integer (got '$HARNESS_SKILL_BODY_CAP')."
+        return 2 ;;
+    esac
     printf '%s' "$HARNESS_SKILL_BODY_CAP"
     return 0
   fi
@@ -232,7 +241,11 @@ harness_project_manifest() {
     return 1
   fi
 
-  _cap=$(harness_skill_body_cap "$_harness")
+  # Command substitution swallows the exit status, so check it explicitly —
+  # otherwise a rejected override would still fall through to an empty cap.
+  if ! _cap=$(harness_skill_body_cap "$_harness"); then
+    return 2
+  fi
   HARNESS_PROJECT_SKIPPED=0
   _projected=0
 
@@ -248,6 +261,14 @@ harness_project_manifest() {
       continue
     fi
 
+    # Reject a destination that escapes the target tree (Stage 4 P2). `_dst` is
+    # passed to `rm -rf` below, so an absolute or `..`-bearing dest would delete
+    # and write outside the user's project.
+    case "$_dest" in
+      /*|*/../*|*/..|../*|..)
+        _harness_log_error "MANIFEST destination '$_dest' for harness '$_harness' must be a relative path inside the project (no leading '/' and no '..' segment) — skipping."
+        continue ;;
+    esac
     _dst="$_target_dir/$_dest"
     _parent=$(dirname "$_dst")
     [ -d "$_parent" ] || mkdir -p "$_parent"

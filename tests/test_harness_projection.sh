@@ -446,6 +446,39 @@ else
 fi
 
 # =============================================================================
+# Stage 4 review hardening (P2). Both of these were empirically reproduced during
+# review before being fixed, so each test guards a real, demonstrated failure.
+# =============================================================================
+S4="$WORK/stage4"; rm -rf "$S4"; mkdir -p "$S4/src/skills/big" "$S4/out" "$S4/esc/sub"
+head -c 20000 /dev/zero | tr '\0' 'x' > "$S4/src/skills/big/SKILL.md"
+printf 'skills\tcodex=.codex/skills\n' > "$S4/mani"
+
+# A malformed cap must fail loudly instead of falling through to "no cap" and
+# installing the oversize skill it was supposed to stop.
+if ( . "$REPO_ROOT/lib/harness-fetch.sh"
+     HARNESS_SKILL_BODY_CAP=abc harness_project_manifest "$S4/src" "$S4/out" "$S4/mani" codex
+   ) >"$S4/log" 2>&1; then
+  fail "P2: a non-numeric HARNESS_SKILL_BODY_CAP was accepted"
+elif grep -q 'must be a non-negative integer' "$S4/log" && [ ! -e "$S4/out/.codex/skills/big" ]; then
+  pass "P2: a malformed cap fails loudly by name and installs nothing"
+else
+  fail "P2: malformed cap did not produce a named error, or installed the oversize skill anyway"
+fi
+
+# A destination that escapes the target tree must be refused before `rm -rf`.
+printf 'skills\tcodex=../ESCAPED\n' > "$S4/mani_esc"
+( . "$REPO_ROOT/lib/harness-fetch.sh"
+  cd "$S4/esc/sub" && harness_project_manifest "$S4/src" . "$S4/mani_esc" codex
+) >"$S4/log2" 2>&1
+if [ -e "$S4/esc/ESCAPED" ]; then
+  fail "P2: a '..' destination escaped the target tree"
+elif grep -q 'must be a relative path inside the project' "$S4/log2"; then
+  pass "P2: a '..' destination is refused by name and nothing is written outside the target"
+else
+  fail "P2: traversal was not written, but no named error explained why"
+fi
+
 printf '\n----------------------------------------\n'
+
 printf 'test_harness_projection.sh: %d passed, %d failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ] || exit 1
