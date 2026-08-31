@@ -33,8 +33,48 @@
 > **before any implementation commit exists**; if it does not (docs, templates, skill-instruction
 > text), BEFORE is the **verbatim prior content** of what changed — a quoted excerpt, not a command.
 
-**BEFORE**: [pasted timestamped command output showing the thing absent/failing, captured before the
-first implementation commit] OR [verbatim excerpt of the prior content, for non-executable changes]
+**BEFORE**:
+
+**(1) The `--harness` flag does not exist — throwaway repo, captured before any implementation commit:**
+
+```
+### BEFORE capture — T097 — host hungnguyenhuu-NUC11PAHi7 — UTC 2026-08-31T07:33:01Z
+### repo HEAD under test: 6d43ada (no implementation commit exists)
+
+$ cd /tmp/t097-before.O9920H && git init -q .   # throwaway repo
+$ bash /home/hungnguyenhuu/workspace/pets/wt-t097/setup.sh --harness codex
+[error] Unknown flag: --harness. Valid flags: --copy, --pack=<name>
+exit=1
+
+$ ls -la .codex/skills
+ls: cannot access '.codex/skills': No such file or directory
+exit=2
+
+$ grep -c . MANIFEST-second-column  # no destination column exists today:
+(no MANIFEST line has any second column)
+```
+
+**(2) A real Codex session cannot see any kit skill, and the `AGENTS.md` text that says so:**
+
+```
+### BEFORE (AC3, controlled probe) — UTC 2026-08-31T07:35:33Z — repo HEAD 6d43ada, no implementation commit
+Three throwaway git repos, each containing ONE probe skill 'zzprobe-skills' in a different directory.
+Command per repo: codex exec --sandbox read-only -C <repo> "List every skill available to you by name..."
+
+/tmp/p-root    (skills/zzprobe-skills/SKILL.md)          -> imagegen, openai-docs, plugin-creator, skill-creator, skill-installer   [probe ABSENT]
+/tmp/p-claude  (.claude/skills/zzprobe-skills/SKILL.md)  -> imagegen, openai-docs, plugin-creator, skill-creator, skill-installer   [probe ABSENT]
+/tmp/p-codex   (.codex/skills/zzprobe-skills/SKILL.md)   -> imagegen, openai-docs, plugin-creator, skill-creator, skill-installer, zzprobe-skills   [probe FOUND]
+
+Conclusion: Codex 0.149.1 discovers skills ONLY under .codex/skills. A kit install today writes
+skills/ and .claude/skills -> neither is discovered, so no kit skill is available to Codex.
+
+### BEFORE (Defect A) — verbatim AGENTS.md lines 29-33 at HEAD 6d43ada:
+## What Codex cannot enforce here
+Codex has no equivalent of Claude Code's hooks, skills, or `Skill`/`Agent` tooling. It cannot run
+`code-review`, `security-review`, `verify`, `ship`, or `migration-safety`, and it does not get the
+git-guardrails PreToolUse hook. Those stay on the Claude supervisor — see `docs/MULTI_AGENT.md`
+("What does NOT port").
+```
 
 **AFTER**: [same command, post-change] OR [verbatim excerpt of the new content]
 
