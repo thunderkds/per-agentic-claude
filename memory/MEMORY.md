@@ -23,9 +23,9 @@
      (mean 326, max 796). Reported by the size test, never enforced; /compact-memory's job. -->
 
 ### Decisions
-- [T097 per-harness projection: copy outward, never transform](decisions.md) — `--harness` selects CLIs at install time; MANIFEST destination column; projections are gitignored copies; Codex 8 KB cap SKIPS and names, never truncates; N=2 by decision
-- [Verify at the harness, not the filesystem](learnings.md) — when the value is "tool X can now see Y", evidence is X's own output; a directory listing is a proxy for discovery, not discovery
-- [An unvalidated test seam is an invisible off switch](learnings.md) — HARNESS_SKILL_BODY_CAP silently disabled the cap it gated; also: `$(...)` swallows exit status, check it explicitly
+- [T097 per-harness projection](decisions.md) — `--harness` selects CLIs at install; MANIFEST destination column; projections are gitignored copies; Codex 8 KB cap skips and names, never truncates
+- [Verify at the harness, not the filesystem](learnings.md) — when the value is "tool X can now see Y", the evidence is X's own output; a directory listing is only a proxy
+- [An unvalidated test seam is an invisible off switch](learnings.md) — HARNESS_SKILL_BODY_CAP silently disabled the cap it gated
 - [Multi-harness portability: canon at plain root](decisions.md) — Stage 0.5 grilling 2026-08-27: user locked `skills/`+`agents/` at plain root, per-project (not central), copy-not-symlink; brainstorming deferred behind T094; 4 repos scanned; AGENTS.md:29-33 stale on Codex skills
 - [v2 is the working branch, main frozen](decisions.md) — from 2026-08-25 all work lands on `v2`; `main` is the user's live v1 install and is never a merge target; worktrees branch from v2, Stage 5 merges into v2
 - [CLAUDE_LEGACY.md sync policy](decisions.md) — mirror new skills + session-startup gates + Hard-Stop Gates from CLAUDE.md into CLAUDE_LEGACY.md on each addition; bump version
