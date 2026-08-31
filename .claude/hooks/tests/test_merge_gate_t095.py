@@ -160,7 +160,7 @@ def run_gate(command, fixture, worktree_dirs=None):
     """
     event = json.dumps({"tool_name": "Bash", "tool_input": {"command": command}})
     saved_stdin, saved_stdout = sys.stdin, sys.stdout
-    saved_enumerator = getattr(merge_gate, "worktree_tasks_dirs", None)
+    saved_enumerator = merge_gate.worktree_tasks_dirs
     sys.stdin = io.StringIO(event)
     sys.stdout = io.StringIO()
     if worktree_dirs is not None:
@@ -173,8 +173,7 @@ def run_gate(command, fixture, worktree_dirs=None):
         printed = sys.stdout.getvalue().strip()
     finally:
         sys.stdin, sys.stdout = saved_stdin, saved_stdout
-        if saved_enumerator is not None:
-            merge_gate.worktree_tasks_dirs = saved_enumerator
+        merge_gate.worktree_tasks_dirs = saved_enumerator
     if not printed:
         return None
     return json.loads(printed)["reason"]
@@ -322,4 +321,233 @@ def test_heredoc_allowance_depends_on_the_fix():
         assert reverted is not None and "Pipeline gate failed" in reverted
     finally:
         merge_gate.strip_heredoc_bodies = saved
+        fixture.cleanup()
+
+
+# ---------------------------------------------------------------------------
+# Defect A — evidence written in a worktree, on the task branch (AC1, AC2)
+# ---------------------------------------------------------------------------
+
+def test_filled_verify_row_in_a_worktree_is_found():
+    """AC1: the filled `☑ pass` row exists ONLY under the worktree's tasks/ —
+    the shape Stage 3 always produces, since the review file is created by the
+    agent on its own branch and is absent from the main checkout until merge."""
+    fixture = GateFixture(review_in_worktree=True)
+    try:
+        assert merge_gate.has_filled_verify_row("T900", fixture.search_dirs) is True
+    finally:
+        fixture.cleanup()
+
+
+def test_gate_does_not_emit_no_evidence_row_for_worktree_evidence():
+    """AC1 at the entry point: the same push that produced this task's BEFORE
+    capture, with the worktree enumerated."""
+    fixture = GateFixture(review_in_worktree=True)
+    try:
+        reason = run_gate(
+            "git push origin fix/t900", fixture, worktree_dirs=[fixture.worktree_tasks]
+        )
+        assert reason is None, reason
+    finally:
+        fixture.cleanup()
+
+
+def test_gate_still_blocks_when_the_review_file_exists_nowhere():
+    """AC2: fail-closed preserved. Searching more places must never become a
+    reason to skip the check."""
+    fixture = GateFixture(review_in_worktree=False)
+    try:
+        reason = run_gate(
+            "git push origin fix/t900", fixture, worktree_dirs=[fixture.worktree_tasks]
+        )
+        assert reason is not None
+        assert "T900 (no evidence row)" in reason
+    finally:
+        fixture.cleanup()
+
+
+def test_main_checkout_is_searched_first():
+    """The common post-merge case resolves on the first candidate, unchanged in
+    behaviour and cost, and a worktree copy can never shadow integrated
+    evidence."""
+    fixture = GateFixture(review_in_worktree=False, review_in_main=True)
+    try:
+        assert merge_gate.evidence_search_dirs(fixture.search_dirs)[0] == fixture.main_tasks
+        assert merge_gate.has_filled_verify_row("T900", fixture.search_dirs) is True
+    finally:
+        fixture.cleanup()
+
+
+def test_evidence_search_dirs_keeps_the_single_directory_shape():
+    """`tasks_dir` is unchanged for every pre-T095 caller: a single path stays a
+    single path, and no worktree enumeration happens for it."""
+    assert merge_gate.evidence_search_dirs("/somewhere/tasks") == ["/somewhere/tasks"]
+
+
+def test_evidence_search_dirs_defaults_to_main_checkout_first():
+    saved = merge_gate.worktree_tasks_dirs
+    try:
+        merge_gate.worktree_tasks_dirs = lambda: ["/wt/tasks"]
+        assert merge_gate.evidence_search_dirs() == [merge_gate.TASKS_DIR, "/wt/tasks"]
+    finally:
+        merge_gate.worktree_tasks_dirs = saved
+
+
+def test_enumeration_failure_degrades_to_main_checkout_not_to_allow():
+    """Every failure of `git worktree list` — git absent, non-zero exit, a
+    timeout, unparsable output — must leave the main-checkout lookup intact.
+    Degrading to "allow" here would stop the gate gating on every task at once.
+    """
+    saved = merge_gate.worktree_tasks_dirs
+
+    def _raises():
+        raise OSError("git not found")
+
+    try:
+        merge_gate.worktree_tasks_dirs = lambda: []
+        assert merge_gate.evidence_search_dirs() == [merge_gate.TASKS_DIR]
+
+        merge_gate.worktree_tasks_dirs = saved
+        fixture = GateFixture(review_in_worktree=True)
+        try:
+            # No worktrees enumerated at all: the worktree-only evidence is
+            # invisible, so the gate blocks — it does not allow.
+            reason = run_gate("git push", fixture, worktree_dirs=[])
+            assert reason is not None and "T900 (no evidence row)" in reason
+        finally:
+            fixture.cleanup()
+    finally:
+        merge_gate.worktree_tasks_dirs = saved
+
+
+def test_worktree_tasks_dirs_returns_empty_when_git_is_unavailable(monkeypatch):
+    def _boom(*args, **kwargs):
+        raise FileNotFoundError("git")
+
+    monkeypatch.setattr(merge_gate.subprocess, "run", _boom)
+    assert merge_gate.worktree_tasks_dirs() == []
+
+
+def test_worktree_tasks_dirs_returns_empty_on_non_zero_exit(monkeypatch):
+    class _Result:
+        returncode = 128
+        stdout = "fatal: not a git repository\n"
+
+    monkeypatch.setattr(merge_gate.subprocess, "run", lambda *a, **k: _Result())
+    assert merge_gate.worktree_tasks_dirs() == []
+
+
+def test_worktree_tasks_dirs_parses_porcelain_and_drops_the_main_checkout(monkeypatch):
+    class _Result:
+        returncode = 0
+        stdout = (
+            f"worktree {merge_gate.ROOT}\nHEAD abc\nbranch refs/heads/main\n\n"
+            "worktree /tmp/wt-t900\nHEAD def\nbranch refs/heads/fix/t900\n\n"
+        )
+
+    monkeypatch.setattr(merge_gate.subprocess, "run", lambda *a, **k: _Result())
+    assert merge_gate.worktree_tasks_dirs() == [os.path.join("/tmp/wt-t900", "tasks")]
+
+
+# ---------------------------------------------------------------------------
+# AC3 — the six fail-closed inputs named in has_filled_verify_row's docstring.
+# Each is checked with the worktree search path ACTIVE, so the Defect A fix is
+# proven not to have opened any of them.
+# ---------------------------------------------------------------------------
+
+def _dirs_with(tmp_path, guide=None, review=None):
+    main = tmp_path / "main" / "tasks"
+    worktree = tmp_path / "wt" / "tasks"
+    main.mkdir(parents=True)
+    worktree.mkdir(parents=True)
+    if guide is not None:
+        (worktree / "TASK_GUIDE_T900.md").write_text(guide)
+    if review is not None:
+        (worktree / "TASK_REVIEW_T900.md").write_text(review)
+    return [str(main), str(worktree)]
+
+
+def test_fail_closed_missing_guide_and_missing_review_file(tmp_path):
+    assert merge_gate.has_filled_verify_row("T900", _dirs_with(tmp_path)) is False
+
+
+def test_fail_closed_missing_review_file_with_vacated_guide(tmp_path):
+    dirs = _dirs_with(tmp_path, guide=GUIDE_WITH_VACATED_EVIDENCE)
+    assert merge_gate.has_filled_verify_row("T900", dirs) is False
+
+
+def test_fail_closed_absent_evidence_section(tmp_path):
+    dirs = _dirs_with(
+        tmp_path,
+        guide=GUIDE_WITH_VACATED_EVIDENCE,
+        review="# TASK_REVIEW - T900\n\n## Demonstration\n\nnothing here\n",
+    )
+    assert merge_gate.has_filled_verify_row("T900", dirs) is False
+
+
+def test_fail_closed_unfilled_row(tmp_path):
+    review = (
+        "# TASK_REVIEW - T900\n\n## Evidence\n\n"
+        "| Check | Result | Notes |\n|---|---|---|\n"
+        "| verify | | |\n"
+    )
+    dirs = _dirs_with(tmp_path, guide=GUIDE_WITH_VACATED_EVIDENCE, review=review)
+    assert merge_gate.has_filled_verify_row("T900", dirs) is False
+
+
+def test_fail_closed_template_unchecked_pass_placeholder(tmp_path):
+    review = (
+        "# TASK_REVIEW - T900\n\n## Evidence\n\n"
+        "| Check | Result | Notes |\n|---|---|---|\n"
+        "| verify | ☐ pass / ☐ fail / ☐ N/A | [what was observed — must say pass] |\n"
+    )
+    dirs = _dirs_with(tmp_path, guide=GUIDE_WITH_VACATED_EVIDENCE, review=review)
+    assert merge_gate.has_filled_verify_row("T900", dirs) is False
+
+
+def test_fail_closed_unreadable_review_file(tmp_path):
+    if os.geteuid() == 0:
+        import pytest
+
+        pytest.skip("root bypasses file permissions")
+    dirs = _dirs_with(
+        tmp_path,
+        guide=GUIDE_WITH_VACATED_EVIDENCE,
+        review=REVIEW_WITH_FILLED_VERIFY_ROW,
+    )
+    unreadable = os.path.join(dirs[1], "TASK_REVIEW_T900.md")
+    os.chmod(unreadable, 0)
+    try:
+        assert merge_gate.has_filled_verify_row("T900", dirs) is False
+    finally:
+        os.chmod(unreadable, 0o644)
+
+
+def test_no_directories_to_search_fails_closed():
+    assert merge_gate.has_filled_verify_row("T900", []) is False
+
+
+# ---------------------------------------------------------------------------
+# AC9 anti-vacuity — with the Defect A fix reverted, the worktree scenario must
+# go red again.
+# ---------------------------------------------------------------------------
+
+def test_worktree_evidence_resolution_depends_on_the_fix():
+    fixture = GateFixture(review_in_worktree=True)
+    saved = merge_gate.evidence_search_dirs
+    try:
+        assert run_gate(
+            "git push origin fix/t900", fixture, worktree_dirs=[fixture.worktree_tasks]
+        ) is None
+
+        # Pre-T095 behaviour: the main checkout's tasks/ and nothing else.
+        merge_gate.evidence_search_dirs = lambda tasks_dir=None: [
+            tasks_dir if isinstance(tasks_dir, str) else merge_gate.TASKS_DIR
+        ]
+        reverted = run_gate(
+            "git push origin fix/t900", fixture, worktree_dirs=[fixture.worktree_tasks]
+        )
+        assert reverted is not None and "T900 (no evidence row)" in reverted
+    finally:
+        merge_gate.evidence_search_dirs = saved
         fixture.cleanup()

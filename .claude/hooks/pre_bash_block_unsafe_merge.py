@@ -12,6 +12,7 @@ complete before code ships.
 import json
 import os
 import re
+import subprocess
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -237,23 +238,101 @@ VERIFY_ROW_PATTERN = re.compile(
 UNCHECKED_PASS_PATTERN = re.compile(r"☐\s*pass\b", re.IGNORECASE)
 
 
+# --- Where the Evidence table can live (T095 defect A) ----------------------
+#
+# `TASKS_DIR` is always the **main checkout's** `tasks/`: `ROOT` derives from
+# this file's own location and `settings.json` invokes every hook as
+# `python3 "$CLAUDE_PROJECT_DIR"/.claude/hooks/...`. But since T064 the Evidence
+# table lives in `tasks/TASK_REVIEW_Txxx.md`, which the agent creates **in its
+# worktree, on its task branch** — Stage 3 is worktree-isolated by mandate
+# (`CLAUDE.md`), so until the branch merges that file does not exist in the main
+# checkout at all. Every worktree-isolated task therefore read as
+# `(no evidence row)`; three consecutive sessions paid for it by hand-landing the
+# review file on the integration branch before merging.
+#
+# The worktree list is an *additional place to look*, never a reason to skip the
+# check. So every failure of the enumeration — git absent, non-zero exit, a
+# timeout, unparsable output — degrades to "main checkout only", which is exactly
+# the pre-T095 behaviour and still fails closed. It can never degrade to "allow".
+#
+# Resolving the file from the *branch* via `git show` was considered and rejected
+# at grill: this gate runs BEFORE a push, when the commit may not exist in the
+# main checkout's object store at all.
+GIT_WORKTREE_TIMEOUT_S = 5
+
+
+def worktree_tasks_dirs():
+    """Each live worktree's `tasks/` directory, main checkout excluded.
+
+    Never raises and never blocks for long: returns `[]` on any failure, and the
+    caller still has the main checkout to search.
+    """
+    try:
+        completed = subprocess.run(
+            ["git", "worktree", "list", "--porcelain"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            timeout=GIT_WORKTREE_TIMEOUT_S,
+        )
+        if completed.returncode != 0:
+            return []
+        dirs = []
+        for line in completed.stdout.splitlines():
+            if not line.startswith("worktree "):
+                continue
+            path = line[len("worktree "):].strip()
+            if not path or os.path.abspath(path) == os.path.abspath(ROOT):
+                continue
+            dirs.append(os.path.join(path, "tasks"))
+        return dirs
+    except Exception:
+        return []
+
+
+def evidence_search_dirs(tasks_dir=None):
+    """The ordered directories to resolve a task's Evidence section across.
+
+    `tasks_dir` keeps its existing single-directory shape — every current caller
+    and test passes one path, or None for "the live repo". It additionally
+    accepts a sequence of paths, which is how a test injects a constructed
+    directory list instead of shelling out to git.
+
+    **Main checkout first**, always: the common post-merge case then resolves on
+    the first candidate, unchanged in behaviour and cost, and a worktree copy can
+    never shadow evidence already integrated.
+    """
+    if tasks_dir is None:
+        return [TASKS_DIR] + worktree_tasks_dirs()
+    if isinstance(tasks_dir, str):
+        return [tasks_dir]
+    try:
+        return [d for d in tasks_dir if isinstance(d, str) and d]
+    except TypeError:
+        return [TASKS_DIR]
+
+
 def has_filled_verify_row(task_id, tasks_dir=None):
-    """True only when the task's Evidence table — wherever it resolves, guide
-    first then `TASK_REVIEW_Txxx.md` — carries a filled `verify` row.
+    """True only when the task's Evidence table — wherever it resolves: the main
+    checkout first, then each live worktree, and within each of those the guide
+    first then `TASK_REVIEW_Txxx.md` — carries a filled `verify` row. The first
+    filled row found wins.
 
     **Fails closed.** A missing guide, a missing review file, an unreadable
     one, an absent Evidence section, an unfilled row, or a row still carrying
-    the template's unchecked `☐ pass` placeholder all return False. This is
+    the template's unchecked `☐ pass` placeholder all return False — in every
+    searched directory, and when there are no directories to search. This is
     the one place in T064 where a wrong answer is silent and repo-wide: if
     "review file missing" ever became anything other than "no evidence", the
     merge gate would stop gating on every task at once.
     """
-    section = read_guide_section(task_id, "Evidence", tasks_dir or TASKS_DIR)
-    if not section:
-        return False
-    for match in VERIFY_ROW_PATTERN.finditer(section):
-        if not UNCHECKED_PASS_PATTERN.search(match.group("result")):
-            return True
+    for directory in evidence_search_dirs(tasks_dir):
+        section = read_guide_section(task_id, "Evidence", directory)
+        if not section:
+            continue
+        for match in VERIFY_ROW_PATTERN.finditer(section):
+            if not UNCHECKED_PASS_PATTERN.search(match.group("result")):
+                return True
     return False
 
 
