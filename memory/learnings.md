@@ -1758,3 +1758,31 @@ setsid ghostty -e bash -c $SP/launch_Txxx.sh >/dev/null 2>&1 < /dev/null & disow
 The marker-file trap (`.pid`/`.exit`/`.done`) still earns its place — it distinguishes normal
 completion from a window close from an agent error — but it cannot survive a process-group kill on
 its own. `--permission-mode acceptEdits` covers file edits only, never Bash.
+
+## Verify at the harness, not at the filesystem (T097, 2026-08-31)
+
+T097's guide singled out one AC as the only one that mattered: *"a real Codex session finds a skill
+by name, not merely that files landed."* That framing was correct and worth generalising — every
+other criterion could pass while the feature failed, because file layout is a **proxy** for
+discovery, not discovery itself.
+
+Both the implementer and the Stage 5 verify ran a real `codex exec`. The verifying run went one step
+further and had Codex *execute* `wake` rather than list it, plus confirm an over-cap skill was
+unavailable — which proves the cap in both directions at the surface that actually consumes it.
+When a task's value is "tool X can now see Y", the evidence is X's own output. A directory listing
+is the thing you check *after* you already believe it works.
+
+## A test seam left unvalidated becomes an invisible off switch (T097 Stage 4, 2026-08-31)
+
+`HARNESS_SKILL_BODY_CAP` existed to let the AC5 anti-vacuity test disable the 8 KB cap. Unvalidated,
+it reached `[ "$_cap" -gt 0 ]`, where a non-numeric value makes the test *error*, the branch fall
+FALSE, and the oversize skill install anyway — rc=0, with only a raw `[: abc: integer expression
+expected` on stderr. The one rule the guide called non-negotiable was defeatable by a typo, in
+exactly the silent way it existed to prevent.
+
+Two general points. A seam that weakens a safety check needs its own validation, or it is an off
+switch nobody documented. And `$(...)` swallows exit status: `_cap=$(f)` discards `f`'s failure, so
+the rejection has to be checked explicitly (`if ! _cap=$(f); then`) or it does not propagate.
+
+Found by *running* the shell path in a sandbox during review, not by reading it. Both P2s that
+mattered were reproduced before being fixed; reading alone had already missed them.

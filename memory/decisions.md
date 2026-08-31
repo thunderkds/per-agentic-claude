@@ -1771,3 +1771,34 @@ Enforced three ways: `scripts/validate.sh` exits 1 on a missing/absolute/non-sym
 **The 1,764-reference historical figure in the T096 guide was stale** — the real count was 909.
 The guide's Correction block and defect D2 in `tasks/TASK_REVIEW_T096.md` carry the breakdown. The
 prohibition it protects (never `sed`/`xargs`/`find -exec` across the audit trail) is unchanged.
+
+## T097 — Per-harness install projection: canon is copied outward, never symlinked or transformed (2026-08-31)
+
+`setup.sh --harness <name>` (repeatable; same flag on `update.sh`) selects which CLIs a project
+receives directories for. With no flag the install is exactly what it was before — satisfied **by
+construction**, not by care: MANIFEST gained an optional trailing `<harness>=<dest>` column and all
+five of its parsers (`lib/harness-fetch.sh`, `setup.sh`'s lock writer, three `update.sh` readers,
+`scripts/validate.sh`) now take field 1 only. Adding a harness is a MANIFEST entry, not a code
+change — with one exception recorded below.
+
+Projections are **real file copies** (ADR-0001: the user owns what lands in their repo), written
+into `.codex/skills/` for Codex, and gitignored downstream: canon is committed, projections are
+generated. The destination is removed before writing, so a re-run is idempotent and can never leave
+an orphan behind.
+
+**Codex's 8 KB skill-body cap is enforced by skipping and naming, never by truncating.** A silently
+trimmed skill looks installed and behaves worse than a missing one, because the failure is
+invisible. Four kit skills exceed it today (`bugfix` 10,173 · `craft-spawn-prompt` 10,109 ·
+`diagnose` 13,548 · `write-better-skill` 14,568) and are genuinely absent in Codex — verified by
+Codex itself reporting `diagnose` unavailable, so this is a real coverage gap, not an installer
+detail.
+
+Deliberately NOT done: per-harness content transformation (Option C, deferred until a real format
+divergence is measured — the cap is a *check*, not a transform), and any third harness. N=2 is a
+decision, not a stopping point reached by accident: DDR-0006's follow-up says the generator's
+cost/benefit inverts at N=4, so adding harnesses casually would cross that line silently.
+
+Known inconsistency, registered as **T098** rather than fixed in passing: `setup.sh --harness codex`
+skips the Claude canon symlinks, but `update.sh` recreates them unconditionally, so a codex-only
+project regains them on the next update. The unconditional call may be a deliberate safety net
+inherited from T096's upgrade-path fix — decide before changing.

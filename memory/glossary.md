@@ -24,3 +24,12 @@
 ## Domain Models
 
 <!-- - **ModelName** (`path/to/model.py`) — what it represents, key fields/invariants. -->
+
+- **Harness** — a CLI/agent runtime the kit installs into (Claude Code, Codex). Selected at install
+  time via `setup.sh --harness <name>`; N=2 by decision (DDR-0006 follow-up).
+- **Canon** — the single tracked source of truth for skills and agent guides: real directories at
+  plain root (`skills/`, `agents/`). Everything else is derived from it.
+- **Projection** — a generated, gitignored copy of the canon written into a harness's own directory
+  (e.g. `.codex/skills/`). Copies, never symlinks; regenerated, never hand-edited.
+- **Destination map** — MANIFEST's optional trailing `<harness>=<dest>` column naming where a
+  canonical path lands for a given harness. Absent = that harness does not receive it.
