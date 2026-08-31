@@ -53,7 +53,8 @@ BASELINE_REF = "8fc4dd2"
 # task's whole point (AC9 in TASK_GUIDE_T096.md), not drift — `360fc36` is now MANIFEST's own
 # unfixed state. `8f8cc47` is T096's MANIFEST edit commit. The pin's purpose is unchanged: MANIFEST
 # still deploys agents as a directory entry and must not be collapsed into the agent guides.
-MANIFEST_BASELINE_REF = "8f8cc47"
+# MANIFEST_BASELINE_REF retired by T097 — see
+# test_ac5_ac10_manifest_still_deploys_agents_as_one_directory_entry below.
 
 # T069's own pre-implementation tip (the Stage 2 guide commit + the BEFORE capture), not T066's.
 # Same reasoning as above: a baseline *ref* dates the comparison; a baseline *count* freezes it.
@@ -235,16 +236,48 @@ def test_ac4_no_guide_tells_an_agent_to_re_read_its_own_system_prompt():
 # --------------------------------------------------------------------------
 # AC5 / AC10 — file-wide negatives.
 # --------------------------------------------------------------------------
-@pytest.mark.parametrize(
-    "rel,ref",
-    [("CLAUDE.md", T070_BASELINE_REF), ("MANIFEST", MANIFEST_BASELINE_REF)],
-)
+@pytest.mark.parametrize("rel,ref", [("CLAUDE.md", T070_BASELINE_REF)])
 def test_ac5_ac10_out_of_scope_files_are_byte_identical_to_the_baseline(rel, ref):
     assert (ROOT / rel).read_bytes() == read_at(rel, ref), (
         f"{rel} changed. CLAUDE.md never reaches a sub-agent at all, so its overlap with the "
-        f"agent guides is CROSS-context redundancy and must not be collapsed; MANIFEST already "
-        f"deploys `agents` as a directory entry."
+        f"agent guides is CROSS-context redundancy and must not be collapsed."
     )
+
+
+def test_ac5_ac10_manifest_still_deploys_agents_as_one_directory_entry():
+    """MANIFEST is no longer pinned byte-identical to MANIFEST_BASELINE_REF.
+
+    T097 deliberately extends MANIFEST with an optional per-harness destination
+    column (`<path>  <harness>=<dest>`), which is inside that task's scope lock
+    and mandated by DDR-0007. A byte-identity pin would forbid a change the
+    project has since decided to make.
+
+    What the original pin was actually protecting survives here, asserted
+    directly: `agents` must remain ONE directory entry. The dedup work this
+    guard belongs to must never expand it into per-file agent entries, and the
+    new destination column must not be mistaken for a second path.
+    """
+    lines = [
+        ln.split("#", 1)[0].strip()
+        for ln in (ROOT / "MANIFEST").read_text(encoding="utf-8").splitlines()
+    ]
+    entries = [ln for ln in lines if ln]
+    paths = [ln.split()[0] for ln in entries]
+
+    assert paths.count("agents") == 1, (
+        "MANIFEST must deploy `agents` as exactly one directory entry, not per-file"
+    )
+    assert not any(p.startswith("agents/") for p in paths), (
+        f"MANIFEST gained per-file agent entries: {[p for p in paths if p.startswith('agents/')]}"
+    )
+    # Every trailing field must be a well-formed `<harness>=<dest>` pair, so a
+    # stray second path can never be silently ignored by the base install.
+    for entry in entries:
+        for field in entry.split()[1:]:
+            assert "=" in field and not field.startswith("="), (
+                f"MANIFEST line {entry!r} has trailing field {field!r} that is not a "
+                f"<harness>=<destination> pair"
+            )
 
 
 # --------------------------------------------------------------------------

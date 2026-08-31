@@ -9,8 +9,13 @@
 #   harness_make_temp_dir              -> creates a temp dir, registers it, sets $HARNESS_TEMP_DIR
 #   harness_register_cleanup <dir>     -> register an existing dir for cleanup-on-exit
 #   harness_fetch <repo_url> <dest>    -> git clone --depth 1 <repo_url> into <dest>
+#   harness_manifest_path <line>       -> field 1 of a MANIFEST line (CR-stripped)
+#   harness_manifest_dest <line> <harness>
+#                                      -> that line's destination for <harness> ('' if none)
 #   harness_copy_manifest <tmp> <target> <manifest>
 #                                      -> copy each MANIFEST-listed path from <tmp> into <target>
+#   harness_project_manifest <src> <target> <manifest> <harness>
+#                                      -> project MANIFEST paths into <harness>'s own directories
 #   harness_install_canon_symlinks [target]
 #                                      -> (re)point .claude/{skills,agents} at the plain-root canon
 #   harness_cleanup                    -> rm -rf all registered temp dirs (idempotent)
@@ -126,11 +131,11 @@ harness_copy_manifest() {
   fi
 
   while IFS= read -r _line; do
-    # CRLF-safe: strip carriage returns (matches setup.sh main loop).
-    _line=$(printf '%s' "$_line" | tr -d '\r')
-    case "$_line" in
-      '#'*|'') continue ;;  # skip comments and blank lines
-    esac
+    # Field 1 only: an optional trailing destination column (T097) is not part
+    # of the base install's path, so a mapped line copies exactly where it
+    # always did.  CRLF-safe; comments and blank lines yield an empty field.
+    _line=$(harness_manifest_path "$_line")
+    [ -n "$_line" ] || continue
 
     _src="$_tmp_dir/$_line"
     _dst="$_target_dir/$_line"
@@ -147,6 +152,155 @@ harness_copy_manifest() {
     [ -e "$_dst" ] && rm -rf "$_dst"
     cp -r "$_src" "$_dst"
   done < "$_manifest_path"
+}
+
+# ── MANIFEST line parsing (T097) ──────────────────────────────────────────────
+# A MANIFEST line is `<path>` optionally followed by whitespace-separated
+# `<harness>=<destination>` pairs. Field 1 is the only field the base install
+# reads, so a line with no pairs behaves exactly as it did before T097 — that is
+# what makes a no-`--harness` install byte-identical to the old one.
+
+# harness_manifest_path <line> -> field 1, CR-stripped. Empty for a comment/blank.
+harness_manifest_path() {
+  printf '%s' "$1" | tr -d '\r' | awk '$0 !~ /^[[:space:]]*(#|$)/ { print $1 }'
+}
+
+# harness_manifest_dest <line> <harness> -> the destination mapped to <harness>,
+# or the empty string when this line maps nothing for it.
+harness_manifest_dest() {
+  printf '%s' "$1" | tr -d '\r' | awk -v h="$2" '
+    $0 ~ /^[[:space:]]*(#|$)/ { next }
+    { for (i = 2; i <= NF; i++) {
+        eq = index($i, "=")
+        if (eq > 1 && substr($i, 1, eq - 1) == h) { print substr($i, eq + 1); exit }
+      } }'
+}
+
+# ── Per-harness skill-body size cap (T097 / DDR-0007) ─────────────────────────
+# Codex caps a skill body at 8 KB. An oversize skill is SKIPPED with a named,
+# loud warning — never truncated: a silently trimmed skill looks installed and
+# behaves worse than a missing one, which is the one rule carried forward from
+# the deferred Option C.
+#
+# HARNESS_SKILL_BODY_CAP overrides the cap for a run; 0 disables the check
+# entirely. That override exists so the anti-vacuity test (AC5) can prove the
+# check is load-bearing by watching the same oversize fixture install silently
+# with it off. It is not a supported way to install oversize skills.
+harness_skill_body_cap() {
+  if [ -n "${HARNESS_SKILL_BODY_CAP:-}" ]; then
+    # Validate the override (Stage 4 P2). An unvalidated value reaches
+    # `[ "$_cap" -gt 0 ]`, which errors and falls FALSE — silently disabling the
+    # cap and installing an oversize skill, the exact invisible outcome the cap
+    # exists to prevent. Fail loudly by name instead.
+    case "$HARNESS_SKILL_BODY_CAP" in
+      *[!0-9]*|'')
+        _harness_log_error "HARNESS_SKILL_BODY_CAP must be a non-negative integer (got '$HARNESS_SKILL_BODY_CAP')."
+        return 2 ;;
+    esac
+    printf '%s' "$HARNESS_SKILL_BODY_CAP"
+    return 0
+  fi
+  case "$1" in
+    codex) printf '8192' ;;
+    *)     printf '0' ;;
+  esac
+}
+
+_harness_file_size() {
+  wc -c < "$1" | tr -d ' '
+}
+
+# harness_project_manifest <src_dir> <target_dir> <manifest_path> <harness>
+# For every MANIFEST line carrying a `<harness>=<dest>` pair, copy field 1 from
+# <src_dir> to <dest> under <target_dir> as REAL file copies (ADR-0001 — never
+# symlinks; the user owns what lands in their repo).
+#
+# The destination is removed before writing, so a re-run is idempotent and can
+# never leave a half-written or orphaned tree behind (AC7): whatever is there
+# after the run is exactly what this run produced.
+#
+# Skill-body cap: when <harness> has a non-zero cap, each top-level entry of a
+# projected directory that contains a SKILL.md is measured. Over the cap, the
+# WHOLE skill directory is skipped and named with its byte size, so a partially
+# copied skill is never left behind either. Returns 0 with warnings on stderr —
+# skip-with-a-loud-warning, not abort, because this kit itself has 4 skills over
+# Codex's cap and aborting would make the flag unusable rather than honest.
+# HARNESS_PROJECT_SKIPPED is set to the number of skills skipped.
+HARNESS_PROJECT_SKIPPED=0
+harness_project_manifest() {
+  _src_dir="$1"
+  _target_dir="$2"
+  _manifest_path="$3"
+  _harness="$4"
+  if [ -z "$_src_dir" ] || [ -z "$_target_dir" ] || [ -z "$_manifest_path" ] || [ -z "$_harness" ]; then
+    _harness_log_error "harness_project_manifest: usage: harness_project_manifest <src_dir> <target_dir> <manifest_path> <harness>"
+    return 2
+  fi
+  if [ ! -f "$_manifest_path" ]; then
+    _harness_log_error "MANIFEST not found at '$_manifest_path'."
+    return 1
+  fi
+
+  # Command substitution swallows the exit status, so check it explicitly —
+  # otherwise a rejected override would still fall through to an empty cap.
+  if ! _cap=$(harness_skill_body_cap "$_harness"); then
+    return 2
+  fi
+  HARNESS_PROJECT_SKIPPED=0
+  _projected=0
+
+  while IFS= read -r _line; do
+    _rel=$(harness_manifest_path "$_line")
+    [ -n "$_rel" ] || continue
+    _dest=$(harness_manifest_dest "$_line" "$_harness")
+    [ -n "$_dest" ] || continue
+
+    _src="$_src_dir/$_rel"
+    if [ ! -e "$_src" ]; then
+      _harness_log_warn "MANIFEST entry '$_rel' not found in fetched clone — skipping for harness '$_harness'."
+      continue
+    fi
+
+    # Reject a destination that escapes the target tree (Stage 4 P2). `_dst` is
+    # passed to `rm -rf` below, so an absolute or `..`-bearing dest would delete
+    # and write outside the user's project.
+    case "$_dest" in
+      /*|*/../*|*/..|../*|..)
+        _harness_log_error "MANIFEST destination '$_dest' for harness '$_harness' must be a relative path inside the project (no leading '/' and no '..' segment) — skipping."
+        continue ;;
+    esac
+    _dst="$_target_dir/$_dest"
+    _parent=$(dirname "$_dst")
+    [ -d "$_parent" ] || mkdir -p "$_parent"
+    rm -rf "$_dst"
+
+    if [ ! -d "$_src" ]; then
+      cp "$_src" "$_dst"
+      _projected=$((_projected + 1))
+      continue
+    fi
+
+    mkdir -p "$_dst"
+    for _entry in "$_src"/*; do
+      [ -e "$_entry" ] || continue
+      _name=$(basename "$_entry")
+      if [ "$_cap" -gt 0 ] && [ -f "$_entry/SKILL.md" ]; then
+        _size=$(_harness_file_size "$_entry/SKILL.md")
+        if [ "$_size" -gt "$_cap" ]; then
+          _harness_log_warn "$_harness: skill '$_name' has a ${_size}-byte body, over the ${_cap}-byte $_harness cap — SKIPPED, not truncated. Shorten or split $_rel/$_name/SKILL.md, then re-run."
+          HARNESS_PROJECT_SKIPPED=$((HARNESS_PROJECT_SKIPPED + 1))
+          continue
+        fi
+      fi
+      cp -r "$_entry" "$_dst/"
+      _projected=$((_projected + 1))
+    done
+  done < "$_manifest_path"
+
+  _harness_log_info "Projected $_projected item(s) for harness '$_harness'."
+  if [ "$HARNESS_PROJECT_SKIPPED" -gt 0 ]; then
+    _harness_log_warn "$HARNESS_PROJECT_SKIPPED skill(s) were SKIPPED for '$_harness' because their body exceeds the ${_cap}-byte cap (named above). They are absent, not truncated."
+  fi
 }
 
 # harness_install_canon_symlinks <target_dir>

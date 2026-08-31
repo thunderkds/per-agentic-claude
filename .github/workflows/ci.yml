@@ -16,10 +16,13 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y shellcheck
 
       - name: Shellcheck install scripts
-        run: shellcheck -x setup.sh update.sh scripts/validate.sh scripts/smoke-install.sh
+        run: shellcheck -x setup.sh update.sh scripts/validate.sh scripts/smoke-install.sh tests/test_harness_projection.sh
 
       - name: Validate framework integrity
         run: sh scripts/validate.sh
 
       - name: Install smoke test
         run: sh scripts/smoke-install.sh
+
+      - name: Per-harness projection tests (T097)
+        run: bash tests/test_harness_projection.sh

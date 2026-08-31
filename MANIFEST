@@ -2,11 +2,34 @@
 # One resource path per line (relative to the central clone root).
 # Lines starting with # are comments. Blank lines are ignored.
 # setup.sh reads this file and symlinks (or copies) each path into the target project.
+#
+# ── Optional destination column (T097 / DDR-0007) ────────────────────────────
+# A line may carry trailing whitespace-separated `<harness>=<destination>` pairs:
+#
+#     <path>                <harness>=<dest-path>  [<harness>=<dest-path> ...]
+#
+# Field 1 is the ONLY field the base install reads — it copies each path to the
+# same relative path in the target, exactly as before. A line with no trailing
+# pairs therefore behaves identically to a pre-T097 MANIFEST, which is what makes
+# `setup.sh` with no `--harness` flag byte-identical to the old install.
+#
+# The trailing pairs drive `setup.sh --harness <name>` / `update.sh --harness <name>`,
+# which PROJECT field 1 into the named harness's own directory as real file copies.
+# A harness with no pair on a line receives nothing for that path.
+#
+# `claude` deliberately appears in NO pair: `.claude/skills` and `.claude/agents`
+# are relative SYMLINKS onto the plain-root canon (DDR-0007), installed by
+# harness_install_canon_symlinks, not copies — a different mechanism, kept where
+# it already lives rather than folded into the copy-projection loop.
+#
+# `agents` has no `codex=` pair on purpose: Codex 0.149.1 has no agent-guide
+# directory it discovers, and DDR-0007/T097 forbid inventing one. Codex receives
+# the kit's role doctrine through AGENTS.md instead.
 
 # NOTE: .claude/settings.json is deployed by setup.sh as a per-project COPY
 # (projects append their own permissions to it), not listed here.
 agents
-skills
+skills          codex=.codex/skills
 .claude/hooks
 templates
 docs/claude-md

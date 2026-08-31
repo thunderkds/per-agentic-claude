@@ -1,6 +1,6 @@
 #!/bin/sh
 # update.sh — Supervisor Agent Deployment System updater (direct-to-repo, ADR-0001)
-# Usage: bash update.sh
+# Usage: bash update.sh [--harness <name>]...
 #
 # Update model (ADR-0001): the old central-clone `git pull` is gone. update.sh
 # operates on the CURRENT git repository. It re-fetches the harness fresh into a
@@ -17,6 +17,21 @@
 # .claude/agents -> ../agents (DDR-0007) so Claude Code reads the canon this run
 # just refreshed; a pre-T096 real directory there is migrated aside, never
 # silently left in place.
+#
+# Harness projections across the relocation (T097, DDR-0007 follow-up) — the
+# behaviour is STATED, not implied, because silent orphaning is the failure mode
+# this rule exists to prevent:
+#
+#   * A harness is re-projected if it was passed via --harness on this run OR if
+#     its destination directory already exists in the project. Existing installs
+#     therefore keep working with a bare `bash update.sh`, with no new state file
+#     and no lock-format change: the vendor directory IS the record of choice.
+#   * Re-projection REPLACES the destination wholesale (rm -rf, then copy), so a
+#     skill deleted or renamed upstream cannot survive as an orphan, and two live
+#     sets of skills can never coexist.
+#   * `.claude/{skills,agents}` are re-pointed at the canon exactly as before; a
+#     pre-T096 real directory there is moved to `<link>.bak` (never deleted, never
+#     left live).
 #
 # Refuses to run if the target is not a git repo, or if any MANIFEST path is a
 # symlink (an old symlink-model install) — it detects and refuses, it does NOT
@@ -97,8 +112,8 @@ detect_symlinks() {
   _manifest="$1"
   _found=0
   while IFS= read -r _line; do
-    _line=$(printf '%s' "$_line" | tr -d '\r')
-    case "$_line" in '#'*|'') continue ;; esac
+    _line=$(harness_manifest_path "$_line")   # field 1 only (T097)
+    [ -n "$_line" ] || continue
     if [ -L "./$_line" ]; then
       log_error "MANIFEST path './$_line' is a symlink (old symlink-model install)."
       _found=1
@@ -134,8 +149,8 @@ is_under_manifest() {
   _k="$1"
   _mf="$2"
   while IFS= read -r _l; do
-    _l=$(printf '%s' "$_l" | tr -d '\r')
-    case "$_l" in '#'*|'') continue ;; esac
+    _l=$(harness_manifest_path "$_l")         # field 1 only (T097)
+    [ -n "$_l" ] || continue
     case "$_k" in "$_l"/*|"$_l") return 0 ;; esac
   done < "$_mf"
   return 1
@@ -159,8 +174,8 @@ build_fresh_file_list() {
   _out="$2"
   : > "$_out"
   while IFS= read -r _line; do
-    _line=$(printf '%s' "$_line" | tr -d '\r')
-    case "$_line" in '#'*|'') continue ;; esac
+    _line=$(harness_manifest_path "$_line")   # field 1 only (T097)
+    [ -n "$_line" ] || continue
     _src="$HARNESS_TEMP_DIR/$_line"
     if [ -d "$_src" ]; then
       ( cd "$HARNESS_TEMP_DIR" && find "$_line" -type f ) >> "$_out"
@@ -325,6 +340,74 @@ write_new_lock() {
   } > "$_lock"
 }
 
+# ── Flags (T097): --harness <name>, repeatable ───────────────────────────────
+HARNESSES=""
+VALID_HARNESSES="claude codex"
+EXPECT_HARNESS=0
+for arg in "$@"; do
+  if [ "$EXPECT_HARNESS" -eq 1 ]; then
+    # Empty value rejected here for the same reason as in setup.sh: an empty
+    # entry word-splits away before validation, so it would be accepted silently.
+    if [ -z "$arg" ]; then
+      log_error "--harness requires a non-empty value. Valid harnesses: $VALID_HARNESSES"
+      exit 1
+    fi
+    HARNESSES="$HARNESSES $arg"; EXPECT_HARNESS=0; continue
+  fi
+  case "$arg" in
+    --harness) EXPECT_HARNESS=1 ;;
+    --harness=*)
+      _hv="${arg#--harness=}"
+      if [ -z "$_hv" ]; then
+        log_error "--harness requires a non-empty value. Valid harnesses: $VALID_HARNESSES"
+        exit 1
+      fi
+      HARNESSES="$HARNESSES $_hv"
+      ;;
+    *) log_error "Unknown flag: $arg. Valid flags: --harness <name>"; exit 1 ;;
+  esac
+done
+if [ "$EXPECT_HARNESS" -eq 1 ]; then
+  log_error "--harness requires a value. Valid harnesses: $VALID_HARNESSES"
+  exit 1
+fi
+for h in $HARNESSES; do
+  _known=0
+  for v in $VALID_HARNESSES; do
+    [ "$h" = "$v" ] && _known=1
+  done
+  if [ "$_known" -eq 0 ]; then
+    log_error "Unknown harness: '$h'. Valid harnesses: $VALID_HARNESSES"
+    exit 1
+  fi
+done
+
+# ── Which harnesses does this run re-project? ────────────────────────────────
+# Requested on the command line, plus every harness whose destination directory
+# is already present — so an install made with `setup.sh --harness codex` stays
+# up to date under a plain `bash update.sh` without any new state to keep.
+# `claude` is excluded: its .claude/{skills,agents} links are handled separately.
+resolve_projection_harnesses() {
+  _manifest="$1"
+  _resolved=""
+  for _h in $VALID_HARNESSES; do
+    [ "$_h" = "claude" ] && continue
+    _want=0
+    for _r in $HARNESSES; do
+      [ "$_r" = "$_h" ] && _want=1
+    done
+    if [ "$_want" -eq 0 ]; then
+      while IFS= read -r _line; do
+        _dest=$(harness_manifest_dest "$_line" "$_h")
+        [ -n "$_dest" ] || continue
+        if [ -e "./$_dest" ]; then _want=1; break; fi
+      done < "$_manifest"
+    fi
+    [ "$_want" -eq 1 ] && _resolved="$_resolved $_h"
+  done
+  PROJECTION_HARNESSES="$_resolved"
+}
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 main() {
   check_git
@@ -361,6 +444,15 @@ main() {
   carry_over_unprocessed "$lock" "$manifest" "$decisions" "$processed"
   write_new_lock "$decisions" "$lock"
 
+  # Re-project every selected/already-present harness from the canon this run
+  # just refreshed. Replaces each destination wholesale, so nothing upstream
+  # removed can survive as an orphan alongside the new set.
+  resolve_projection_harnesses "$manifest"
+  for h in $PROJECTION_HARNESSES; do
+    log_info "Re-projecting canon for harness '$h'."
+    harness_project_manifest "$HARNESS_TEMP_DIR" "." "$manifest" "$h"
+  done
+
   # Re-point .claude/{skills,agents} at the freshly copied plain-root canon.
   # MANIFEST ships the canon at plain root; nothing else in this run touches
   # .claude/skills, so without this an install whose link is missing, stale, or
@@ -369,6 +461,9 @@ main() {
   harness_install_canon_symlinks .
 
   log_info "Update complete. Re-recorded $lock"
+  if [ -n "$PROJECTION_HARNESSES" ]; then
+    log_info "Re-projected harness(es):$PROJECTION_HARNESSES"
+  fi
 
   if [ "$UNRESOLVED" -gt 0 ]; then
     log_error "$UNRESOLVED conflict(s) could not be resolved (no interactive input). Re-run 'bash update.sh' in a terminal to resolve them."
