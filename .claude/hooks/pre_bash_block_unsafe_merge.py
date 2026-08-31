@@ -29,9 +29,16 @@ TRACE_DIR = os.path.join(ROOT, "memory", "event-trace")
 # stdout, which the harness reads as a non-blocking hook error and the merge
 # proceeds — the precise direction AC7 exists to prevent. So the import is
 # guarded and its failure is turned into an explicit block.
+#
+# `shell_data.strip_heredoc_bodies` (T095 defect C) is imported in the same
+# guarded block for the same reason, though it fails in the opposite direction:
+# losing it would make the gate classify heredoc *bodies* as commands again
+# (over-blocking, not under-blocking). Blocking on its absence keeps one rule
+# here — an unavailable resolver is a block — rather than two.
 sys.path.insert(0, os.path.join(HOOKS_DIR, "lib"))
 try:
     from guide_sections import read_guide_section  # noqa: E402
+    from shell_data import strip_heredoc_bodies  # noqa: E402
 except Exception as exc:  # pragma: no cover - exercised via subprocess test
     print(json.dumps({
         "decision": "block",
@@ -39,7 +46,8 @@ except Exception as exc:  # pragma: no cover - exercised via subprocess test
             "[hook:pre_bash] Evidence resolver unavailable "
             f"({type(exc).__name__}: {exc}) — cannot confirm Stage 5 verify "
             "evidence for any task, so this push/merge is blocked. Restore "
-            ".claude/hooks/lib/guide_sections.py."
+            ".claude/hooks/lib/guide_sections.py and "
+            ".claude/hooks/lib/shell_data.py."
         ),
     }))
     sys.exit(0)
@@ -267,7 +275,12 @@ def main():
     if not isinstance(command, str):
         sys.exit(0)
 
-    if not any(re.search(p, command) for p in BLOCKED_PATTERNS):
+    # Classify the command, not the data it carries (T095 defect C). A heredoc
+    # body is an argument being written to a file, so a `git push` inside one is
+    # a mention; the body is replaced with a space before the push/merge/rebase
+    # patterns run. Only terminated bodies are removed, and only up to their
+    # terminator, so a real `; git push` on the same command line is still seen.
+    if not any(re.search(p, strip_heredoc_bodies(command)) for p in BLOCKED_PATTERNS):
         sys.exit(0)
 
     try:
