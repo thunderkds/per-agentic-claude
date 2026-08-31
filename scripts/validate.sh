@@ -25,11 +25,11 @@ section "MANIFEST entries resolve on disk"
 if [ ! -f MANIFEST ]; then
   err "MANIFEST file is missing"
 else
+  # Field 1 only: a line may carry trailing `<harness>=<dest>` destination pairs
+  # (T097). Those name a projection target, not a path that must exist on disk.
   while IFS= read -r line; do
-    line=$(printf '%s' "$line" | tr -d '\r')
-    case "$line" in
-      '#'*|'') continue ;;
-    esac
+    line=$(printf '%s' "$line" | tr -d '\r' | awk '$0 !~ /^[[:space:]]*(#|$)/ { print $1 }')
+    [ -n "$line" ] || continue
     if [ -e "$line" ]; then ok "$line"; else err "MANIFEST entry not found: $line"; fi
   done < MANIFEST
 fi
