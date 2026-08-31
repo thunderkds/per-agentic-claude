@@ -1,5 +1,5 @@
 # PROJECT_KANBAN.md
-**Last updated**: 2026-08-25
+**Last updated**: 2026-08-31
 
 > Compact task board. Full context lives in `PROJECT_SPEC.md`. Update this file whenever a task status changes.
 
@@ -9,24 +9,21 @@
 
 ### Todo
 
-> **Session handoff — 2026-08-28.** T096 merged (`cb0078f`); its worktree is removed and the board,
-> memory, and evidence are all committed. v2 is clean and green: 707 hook tests, 40 tests, 30 update
-> tests, 18 setup tests, `validate.sh` and `smoke-install.sh` all exit 0; `.claude/skills -> ../skills`,
-> `.claude/agents -> ../agents`.
+> **Session handoff — 2026-08-31.** T097 merged. Its worktree and the T096 lessons both held: the
+> guide was tracked before the spawn, and the `setsid` launch survived (46 min elapsed, agent
+> completed with 5 commits). v2 is clean and green: 707 hook tests, 40 tests, 41 projection tests,
+> `validate.sh` and `smoke-install.sh` RC=0.
 >
-> **Two process lessons from today, both already in `memory/learnings.md` — apply them before the next spawn:**
-> 1. **Commit the guide and everything its Requirement Refs cite before spawning.** Untracked files do
->    not reach a worktree. T095/T097 guides are now tracked (`13ba24d`), so this is handled.
-> 2. **Launch with `setsid`**, or the harness kills the agent at exit 129 when the launching Bash call
->    returns. `--permission-mode acceptEdits` covers file edits only, never Bash — judge "working" by
->    CPU time, not elapsed time.
+> **The kit now installs into Codex.** `setup.sh --harness codex` projects canon into `.codex/skills/`;
+> a real Codex 0.149.1 session executes kit skills by name. Four skills exceed Codex's 8 KB body cap
+> (`bugfix`, `craft-spawn-prompt`, `diagnose`, `write-better-skill`) and are SKIPPED, never truncated —
+> they are genuinely unavailable in Codex, which is a real coverage gap, not just an installer detail.
 >
-> **T095 (P0) is still deferred and still actively obstructing.** All three of its defects fired during
-> the T096 session: the merge gate could not see evidence created in a worktree (worked around by
-> landing evidence on v2 first, twice), and it blocked a write whose *data* merely contained the string
-> `git push`. Worth doing before or alongside T097.
+> **T095 (P0) is still deferred and still obstructing.** Its merge-gate defect fired again this
+> session — T097's evidence had to be landed on v2 before the merge for the third time running.
+> Two P0-adjacent sessions in a row have paid this tax. Do it before the next feature task.
 
-- [ ] **T097** — (B2): Per-harness install projection, `setup.sh --harness`, and the `AGENTS.md` correction that unblocks Codex | Common-Infrastructure-Agent | C2 | Risk: Medium | P1 | Guide: `tasks/TASK_GUIDE_T097.md` (tracked 2026-08-28) | **Dependency T096 is MERGED — T097 is unblocked.** | **Re-read the guide against the merged tree before spawning:** T096 shipped `harness_install_canon_symlinks` in `lib/harness-fetch.sh`, called by both `setup.sh` and `update.sh`, so part of what T097 assumed it would build now exists. Scope shifts toward `--harness <name>` projection + the `AGENTS.md` Codex correction. Amend the ACs if they no longer match, the way T096's AC4/AC13-15 were amended. | **AC3 prerequisite verified 2026-08-28:** `codex-cli 0.149.1` is on PATH at `~/.local/bin/codex`, so the required real-session transcript is obtainable — AC3 is satisfiable, not BLOCKED. Remember the 8 KB skill-body cap: on an oversize skill, fail loudly, never truncate. | Do NOT repurpose `install_abs` (`setup.sh`) — the guide forbids it.
+- [ ] **T098** — **`update.sh` silently re-Claude-ifies a Codex-only project, so the two installers disagree about the same project.** Registered 2026-08-31 from T097's Stage 5 `/verify`, observed on a clean install rather than inferred: `setup.sh --harness codex` correctly skips the Claude canon symlinks and logs *"Harness 'claude' not selected — skipping .claude/{skills,agents} symlinks"*, but `update.sh` calls `harness_install_canon_symlinks` unconditionally (`update.sh:461`), so the very next no-flag update recreates `.claude/skills` and `.claude/agents`. Verified: absent after setup, present after one update. This contradicts T097's own stated goal — *"a project only ever receives directories for CLIs it actually uses"* — and the contradiction is currently **undocumented**, which is the real defect: nothing records whether the unconditional call is a deliberate safety net inherited from T096's upgrade-path fix (where it exists precisely so an install can never be left reading stale canon) or an oversight. **Decide before changing.** The fix is small but touches exactly the upgrade-path logic T096's Stage 5 verify hardened after it shipped a regression, so it needs its own review pass rather than a drive-by edit. Effect today is benign — two symlinks — so this is correctness of intent, not breakage. Related: T097's second verify finding (a rejected `HARNESS_SKILL_BODY_CAP` aborts mid-install leaving a partial tree with no message saying so) is **in scope here** as a second, smaller item. | Common-Infrastructure-Agent | C1 | Risk: Low | P2 | Guide: TBD (Stage 2)
 - [ ] **T095** — The merge gate cannot see evidence created in a worktree, prescribes a remedy the project disproved, and blocks writes whose *data* mentions a push | Common-Infrastructure-Agent | C2 | Risk: Medium | P0
 
 ### In Progress
@@ -37,6 +34,7 @@
 
 
 ### Done
+- [x] **T097** — (B2): Per-harness install projection, `setup.sh --harness`, and the `AGENTS.md` correction that unblocks Codex | Common-Infrastructure-Agent | C2 | Risk: Medium | P1 | Guide: `tasks/TASK_GUIDE_T097.md` | Stage 4 code-review PASS (0 P0/P1; 3 P2 + 1 P3, all fixed in `3185511` — two were empirically reproduced in a sandbox before being fixed: an unvalidated `HARNESS_SKILL_BODY_CAP` silently disabled the 8 KB cap, and an unvalidated MANIFEST destination reached `rm -rf` and escaped the target tree) | Stage 4 security-review PASS (no HIGH/MEDIUM; the traversal was rated defense-in-depth, not a vulnerability, because MANIFEST comes from the kit clone that is already code execution) | Stage 5 /verify PASS at the real surface — real installers against scratch repos plus a real Codex 0.149.1 session that **executed** `wake` and confirmed over-cap `diagnose` unavailable, reproducing AC3 independently of the implementer | 707 hook / 40 / 41 projection tests, smoke-install + validate RC=0 | 2 verify findings, neither blocking, first registered as **T098**
 - [x] **T096** — (B1): Relocate canonical `skills/` and `agents/` to plain root, without touching the historical audit trail | Common-Infrastructure-Agent | C2 | Risk: Medium | P1 | Guide: `tasks/TASK_GUIDE_T096.md` | Stage 4 code-review PASS (1 P1 folded back in) | Stage 5 verify PASS (FAIL on first pass — upgrade-path regression, fixed in `72c8225`) | Evidence: `tasks/TASK_REVIEW_T096.md`
 - [x] **T094** — **The hook suite is red on v2's first commit — three failures, two unrelated causes.** Registered 2026-08-25 as v2's first task, found by running `python3 -m pytest .claude/hooks/tests/ -q` on the branch point: `3 failed, 691 passed`, all inherited from `main`. **Group A** — `test_kanban_section_parsing.py`'s `test_find_kanban_section_on_real_current_board` and `test_live_board_still_carries_a_cross_section_bold_reference` assert against the *live* `PROJECT_KANBAN.md` and fail now that the board is drained (`no Todo rows found on real board`; `assert []`). `find_kanban_section()` is correct — T093's fix stands; the tests encoded "the board always has work on it" as a precondition, the same defect class as T075's budget test coupled to a nearly-full file. Registering this very row turns both green without fixing anything, so the fix must be proven against a drained-board fixture, not the live file. Also in scope: that file defines `test_find_kanban_section_on_real_current_board` **twice** (lines 139 and 349); Python binds the second, so the T045 version has been dead code since T093 landed. **Group B** — `test_agent_guide_dedup.py::test_ac7...[c-infra]` fails at `10,327 -> 10,518 chars`: T091's Staleness Guard rewrite (`bbfd0f0`, `3b036e1`) added +191 chars to the *shared* `general-agent-template.md`, and `common-infrastructure.md` is the smallest role guide, so only that pair breached. A real per-spawn context regression T091's own review missed; the fix is to compress the guard while keeping all of T091's content, not to re-pin the baseline — the test's own comment warns that a blanket re-pin "would have made the next role to breach invisible", and this is that next one. | common-infrastructure | C2 | Risk: Medium | P0 | Guide: `tasks/TASK_GUIDE_T094.md`
 
