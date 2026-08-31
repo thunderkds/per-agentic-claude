@@ -158,7 +158,22 @@ push; this is a misclassification of a write as a push.
 
 **Depends on**: `None`
 
-**Blocks**: T094 — its push cannot proceed until Defect A is fixed.
+**Blocks**: nothing, as of 2026-08-31 — but it has taxed every task since.
+
+> **Supervisor amendment, 2026-08-31 (read this before the Requirement above).** The guide was
+> written while T094's push was live-blocked. That is no longer the situation, and the change is
+> in your favour: T094, T096 and T097 have all since merged and pushed. Each one got there by the
+> Supervisor **manually landing the review file on `v2` before merging** — three consecutive
+> sessions paying the same workaround, which is now the standing evidence that Defect A is real and
+> recurring rather than a one-off.
+>
+> Nothing about the three defects or the 11 Acceptance Criteria changes. What changes is that you
+> are not unblocking a stuck push; you are removing a tax. Do not treat the absence of a live block
+> as evidence the defect is gone — reproduce it from the fixtures the ACs name.
+>
+> One consequence worth planning for: **you are editing the gate that governs your own pushes.** A
+> mid-edit broken state can block your own commits. Work in small steps and re-run the hook against
+> the AC fixtures after each, rather than discovering it at the end.
 
 **Entry point**: `printf '%s' '<PreToolUse Bash event JSON>' | python3 .claude/hooks/pre_bash_block_unsafe_merge.py`
 
