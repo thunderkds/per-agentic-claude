@@ -89,8 +89,13 @@ BLOCKED_PATTERNS = [
 #
 # Two known limits, both erring toward fail-closed:
 #   * An invocation wrapped entirely in quotes (`bash -c "python3 -m pytest"`)
-#     is treated as a mention and rejected. Run the runner directly, or export
-#     CLAUDE_ACTIVE_TASK and run it unwrapped.
+#     is treated as a mention and rejected. Run the runner directly, unwrapped.
+#     (Pre-T095 this said "or export CLAUDE_ACTIVE_TASK and run it unwrapped",
+#     which carried the same false premise as the block message below: T047
+#     measured that a hook is a *sibling* process of the tool call and never
+#     inherits a `Bash` call's subshell, so an in-session `export` reaches
+#     nothing. Attribution is a separate concern from this rule anyway — see
+#     ATTRIBUTION_REMEDY.)
 #   * The gate proves a runner was *invoked*, not that a test suite *passed*
 #     (`pytest --version` would qualify). `is_error: false` excludes a failing
 #     run, which is the strongest signal the trace carries.
@@ -336,6 +341,48 @@ def has_filled_verify_row(task_id, tasks_dir=None):
     return False
 
 
+# --- What to actually do about an unattributed Bash call (T095 defect B) ----
+#
+# This gate used to end its block with "a Bash command is attributed to a task
+# **only** via CLAUDE_ACTIVE_TASK — run the task's verification command as
+# `CLAUDE_ACTIVE_TASK=Txxx <command>`". Two things were wrong with it, and it
+# was printed at the exact moment an operator is looking for a way out:
+#
+#   * The mechanism does not work from inside a session. T047 measured it: the
+#     harness spawns a hook as a *sibling* process of the tool call, not a child
+#     of the command inside it, so the hook inherits the harness's environment
+#     and never the subshell a `Bash` call creates. Every record produced under
+#     that instruction landed in `_untagged.jsonl`, and this gate then correctly
+#     failed closed on it — blocking honest tasks.
+#   * "only" was false. The env var *is* a working channel when it is set in the
+#     process that launches the session; the state file is a second one, and the
+#     only one reachable mid-session. `task_context.py`'s precedence list has
+#     carried both since T047.
+#
+# The wording below is the one already written and proven in
+# `craft-spawn-prompt` element 6 and `task_context.py`'s slot 2, condensed —
+# deliberately reused rather than re-composed, because a third phrasing of this
+# mechanism is exactly how the first two drifted apart. The absolute-path
+# requirement is named because it is load-bearing: a sub-agent's cwd is its own
+# worktree, so a relative path (or an unset `$CLAUDE_PROJECT_DIR`, which is
+# empty inside a `Bash` tool call) silently writes a file the live hook never
+# reads. That was T047's own Stage 4 P1 finding.
+ATTRIBUTION_REMEDY = (
+    "Note: if a task above is missing its trace record rather than its evidence "
+    "row, attribute your Bash calls by writing the active-task state file first: "
+    "`mkdir -p <main-checkout>/.claude/hooks/.state && printf '%s\\n%s\\n' "
+    "\"Txxx\" \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\" > "
+    "<main-checkout>/.claude/hooks/.state/active_task` — using the literal "
+    "absolute path of the main checkout (not $CLAUDE_PROJECT_DIR, which is empty "
+    "inside a Bash tool call, and not a relative path, which resolves into your "
+    "worktree). Valid for CLAUDE_ACTIVE_TASK_STATE_MAX_AGE_S seconds (default "
+    "6h). CLAUDE_ACTIVE_TASK=Txxx <command> does NOT work from inside a session: "
+    "a hook is a sibling process of the tool call and never inherits its "
+    "subshell (T047). The env var only takes effect when set before the session "
+    "starts."
+)
+
+
 def main():
     try:
         event = json.load(sys.stdin)
@@ -417,10 +464,7 @@ def main():
                 "[hook:pre_bash] Pipeline gate failed — cannot push/merge:\n  • "
                 + "\n  • ".join(blockers)
                 + "\nComplete Stage 4 review and Stage 5 verify first."
-                + "\n  Note: a Bash command is attributed to a task only via"
-                + " CLAUDE_ACTIVE_TASK — run the task's verification command as"
-                + " `CLAUDE_ACTIVE_TASK=Txxx <command>` or no trace record is"
-                + " filed under it."
+                + "\n  " + ATTRIBUTION_REMEDY
             )
         }
         print(json.dumps(result))

@@ -551,3 +551,60 @@ def test_worktree_evidence_resolution_depends_on_the_fix():
     finally:
         merge_gate.evidence_search_dirs = saved
         fixture.cleanup()
+
+
+# ---------------------------------------------------------------------------
+# Defect B — the remediation note prescribed a mechanism T047 measured as dead
+# (AC4, AC5, AC6)
+# ---------------------------------------------------------------------------
+
+def _block_message():
+    fixture = GateFixture(review_in_worktree=False)
+    try:
+        reason = run_gate("git push origin fix/t900", fixture, worktree_dirs=[])
+        assert reason is not None, "fixture should block, or there is no message to check"
+        return reason
+    finally:
+        fixture.cleanup()
+
+
+def test_block_message_does_not_prescribe_the_env_var_wrapper():
+    """AC4: `CLAUDE_ACTIVE_TASK=Txxx <command>` cannot attribute anything from
+    inside a session — a hook is a sibling process of the tool call. The gate
+    must not hand an operator that instruction at the moment it blocks them."""
+    message = _block_message()
+    assert "CLAUDE_ACTIVE_TASK=Txxx <command>`" not in message
+    assert "run the task's verification command as" not in message
+
+
+def test_block_message_names_the_state_file_with_an_absolute_path():
+    """AC4: the working channel, and the one detail that makes it work — a
+    relative path resolves into the agent's own worktree, which the live hook
+    never reads (T047 Stage 4 P1)."""
+    message = _block_message()
+    assert ".claude/hooks/.state/active_task" in message
+    assert "absolute path" in message
+    assert "$CLAUDE_PROJECT_DIR" in message  # named as the thing NOT to use
+
+
+def test_block_message_does_not_claim_the_env_var_is_the_only_channel():
+    """AC5: "only" was false — the state file is a second working channel, and
+    the env var itself works when set before the session starts."""
+    message = _block_message()
+    assert "attributed to a task only via" not in message
+    assert "before the session" in message
+
+
+def test_env_var_is_still_described_as_working_in_its_real_context():
+    """AC5, the other half: the correction must not overshoot into "the env var
+    never works" — `task_context.py` still honours it as precedence slot 1."""
+    assert "only takes effect when set before the session starts" in merge_gate.ATTRIBUTION_REMEDY
+
+
+def test_quoted_invocation_comment_no_longer_prescribes_an_in_session_export():
+    """AC6: line 84's comment carried the same false premise and is corrected on
+    the same grounds. Asserted against the file's source, since a comment has no
+    runtime surface."""
+    source = open(HOOK_PATH, encoding="utf-8").read()
+    assert "or export\n#     CLAUDE_ACTIVE_TASK and run it unwrapped" not in source
+    assert "Run the runner directly, unwrapped." in source
