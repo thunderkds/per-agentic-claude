@@ -282,6 +282,39 @@ if run_setup "$T6B" --harness; then
 else
   pass "AC6: bare --harness with no value exits non-zero"
 fi
+# An EMPTY value is the dangerous shape, found by Stage 5 /verify: it cannot be
+# caught by the validation loop, because `for h in $HARNESSES` word-splits an
+# empty entry away (validating zero names) while the string stays non-empty and
+# so suppresses the default-to-claude fallback. Before the fix this exited 0 and
+# produced an install with NO harness directories at all — no .claude/skills, no
+# .claude/agents, no .codex — which is exactly the silently-empty install AC6
+# exists to forbid, and the user's original "skill is not available" symptom.
+for _empty_form in '--harness ""' '--harness='; do
+  T6C=$(new_target "target-empty-$(printf '%s' "$_empty_form" | tr -cd 'a-z=')")
+  if [ "$_empty_form" = '--harness=' ]; then
+    run_setup "$T6C" --harness=
+  else
+    run_setup "$T6C" --harness ""
+  fi
+  if [ "$?" -eq 0 ]; then
+    fail "AC6: $_empty_form exited 0 (silently empty install)"
+  else
+    pass "AC6: $_empty_form exits non-zero"
+  fi
+  if [ ! -L "$T6C/.claude/skills" ] && [ ! -e "$T6C/.codex" ] && [ ! -e "$T6C/CLAUDE.md" ]; then
+    pass "AC6: $_empty_form wrote nothing — no harness-less install"
+  else
+    fail "AC6: $_empty_form produced an install with no usable harness directory"
+  fi
+done
+# update.sh must reject the same shape rather than silently doing nothing.
+T6D=$(new_target target-empty-update)
+run_setup "$T6D" --harness codex
+if run_update "$T6D" --harness ""; then
+  fail "AC6: update.sh --harness \"\" exited 0"
+else
+  pass "AC6: update.sh rejects an empty --harness value too"
+fi
 
 # =============================================================================
 # Test 7 (AC7) — a second identical run changes nothing

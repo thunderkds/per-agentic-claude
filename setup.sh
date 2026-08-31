@@ -100,9 +100,26 @@ for arg in "$@"; do
     --copy) USE_COPY=1 ;;
     --pack=*) pack_val="${arg#--pack=}"; PACKS="$PACKS $pack_val" ;;
     --harness) EXPECT_HARNESS=1 ;;
-    --harness=*) HARNESSES="$HARNESSES ${arg#--harness=}" ;;
+    --harness=*)
+      # An empty value must be rejected here. It cannot be caught later: the
+      # validation loop below word-splits $HARNESSES, so an empty entry vanishes
+      # and validates zero names, while the string itself stays non-empty and so
+      # suppresses the default-to-claude fallback. The result would be an install
+      # with NO harness directories at all, which is the silently-empty install
+      # --harness exists to prevent.
+      _hv="${arg#--harness=}"
+      if [ -z "$_hv" ]; then
+        log_error "--harness requires a non-empty value. Valid harnesses: $VALID_HARNESSES"
+        exit 1
+      fi
+      HARNESSES="$HARNESSES $_hv"
+      ;;
     *)
       if [ "$EXPECT_HARNESS" -eq 1 ]; then
+        if [ -z "$arg" ]; then
+          log_error "--harness requires a non-empty value. Valid harnesses: $VALID_HARNESSES"
+          exit 1
+        fi
         HARNESSES="$HARNESSES $arg"; EXPECT_HARNESS=0
       else
         log_error "Unknown flag: $arg. Valid flags: --copy, --pack=<name>, --harness <name>"

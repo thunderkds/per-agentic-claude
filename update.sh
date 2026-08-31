@@ -346,11 +346,24 @@ VALID_HARNESSES="claude codex"
 EXPECT_HARNESS=0
 for arg in "$@"; do
   if [ "$EXPECT_HARNESS" -eq 1 ]; then
+    # Empty value rejected here for the same reason as in setup.sh: an empty
+    # entry word-splits away before validation, so it would be accepted silently.
+    if [ -z "$arg" ]; then
+      log_error "--harness requires a non-empty value. Valid harnesses: $VALID_HARNESSES"
+      exit 1
+    fi
     HARNESSES="$HARNESSES $arg"; EXPECT_HARNESS=0; continue
   fi
   case "$arg" in
     --harness) EXPECT_HARNESS=1 ;;
-    --harness=*) HARNESSES="$HARNESSES ${arg#--harness=}" ;;
+    --harness=*)
+      _hv="${arg#--harness=}"
+      if [ -z "$_hv" ]; then
+        log_error "--harness requires a non-empty value. Valid harnesses: $VALID_HARNESSES"
+        exit 1
+      fi
+      HARNESSES="$HARNESSES $_hv"
+      ;;
     *) log_error "Unknown flag: $arg. Valid flags: --harness <name>"; exit 1 ;;
   esac
 done
