@@ -14,12 +14,12 @@
 
 | Check | Result | Notes / output snippet |
 |-------|--------|------------------------|
-| **New test(s) cover Acceptance Criteria (file paths pasted)** | ☑ pass | `.claude/hooks/tests/test_merge_gate_t095.py` — 37 new tests, all against constructed fixtures. Defect A: AC1 (worktree-only evidence found, at the entry point and at `has_filled_verify_row`), AC2 (review file nowhere → still `(no evidence row)`), AC3 ×6 fail-closed inputs re-asserted with the worktree search path active, enumeration-failure degradation, porcelain parsing. Defect B: AC4, AC5 (both directions), AC6. Defect C: AC7, AC8 ×3 (after the terminator, before the heredoc, on the header line), unterminated-heredoc fail-closed, terminator forms, here-string, multi-heredoc. AC9 anti-vacuity: `test_worktree_evidence_resolution_depends_on_the_fix` and `test_heredoc_allowance_depends_on_the_fix` — each reverts its fix in-place and asserts the scenario goes red again. |
-| Verification command run | ☑ pass | `python3 -m pytest .claude/hooks/tests/ -q && python3 -m pytest tests/ -q` run 2026-08-31T09:18:56Z → `744 passed in 9.00s` then `40 passed in 0.05s`. Baseline was 707 before T095 (AC10 asks for ≥697/≥707); +37 is exactly this task's new tests, no pre-existing test changed. |
+| **New test(s) cover Acceptance Criteria (file paths pasted)** | ☑ pass | `.claude/hooks/tests/test_merge_gate_t095.py` (37 tests) and `.claude/hooks/tests/test_memory_hook_heredoc_data.py` (13 tests, the Supervisor-approved `post_bash_memory_update.py` reuse) — 50 new tests, all against constructed fixtures. Defect A: AC1 (worktree-only evidence found, at the entry point and at `has_filled_verify_row`), AC2 (review file nowhere → still `(no evidence row)`), AC3 ×6 fail-closed inputs re-asserted with the worktree search path active, enumeration-failure degradation, porcelain parsing. Defect B: AC4, AC5 (both directions), AC6. Defect C: AC7, AC8 ×3 (after the terminator, before the heredoc, on the header line), unterminated-heredoc fail-closed, terminator forms, here-string, multi-heredoc. AC9 anti-vacuity: `test_worktree_evidence_resolution_depends_on_the_fix` and `test_heredoc_allowance_depends_on_the_fix` — each reverts its fix in-place and asserts the scenario goes red again. |
+| Verification command run | ☑ pass | `python3 -m pytest .claude/hooks/tests/ -q && python3 -m pytest tests/ -q` → `757 passed in 8.99s` then `40 passed in 0.05s`. Baseline was 707 before T095 (AC10 asks for ≥697/≥707); +50 is exactly this task's new tests (37 for the three merge-gate defects, 13 for the Supervisor-approved `post_bash_memory_update.py` reuse), no pre-existing test changed. Earlier run at 2026-08-31T09:18:56Z, before the scope addition, showed `744 passed`. |
 | Negative cases hold | ☑ pass | Fail-closed is the whole risk here and is asserted from three sides: AC3's six named inputs (missing guide, missing review file, unreadable file, absent Evidence section, unfilled row, template `☐ pass` placeholder) all return False *with* the worktree path active; every `git worktree list` failure mode (git absent, non-zero exit, exception) degrades to main-checkout-only, never to allow; and AC8's anti-evasion probe confirms a real `; git push` after a heredoc terminator still blocks. Both AC9 anti-vacuity probes go red on a reverted fix, so none of the above is vacuous. |
 | verify | ☐ pass / ☐ fail / ☐ N/A | [what was observed — must literally state "pass" or "fail" here too, e.g. "skill run, feature confirmed working — pass": the merge gate scans this Notes column for the word "pass", not just the Result column] |
 | Review scope bounded to the change's blast radius (affected set, not whole repo) | ☐ pass / ☐ fail | [what was reviewed vs. skipped, and why] |
-| Full smoke suite still green (no regression) | ☑ pass | `tests/` 40 passed, unchanged. `.claude/hooks/tests/` 707 → 744, the delta being this task's own new tests only. |
+| Full smoke suite still green (no regression) | ☑ pass | `tests/` 40 passed, unchanged. `.claude/hooks/tests/` 707 → 757, the delta being this task's own new tests only. |
 | **UI: Visual regression (diff or verdict pasted)** | ☑ N/A | Pure-backend task: one Python hook, one new hook lib module, one test file. No UI component, no rendered surface. |
 | **UI: Design-system compliance (tokens/colors/typography verified)** | ☑ N/A | Same reason — no UI surface in scope. |
 | **UI: Responsiveness at target viewports** | ☑ N/A | Same reason — no UI surface in scope. |
@@ -193,6 +193,42 @@ Read against BEFORE, scenario by scenario:
   same heredoc followed by a real `; git push` after the terminator still blocks. Stripping stops at
   the terminator the header declares, so the fix did not become a way to smuggle a push past the
   gate.
+
+**AFTER (scope addition, Supervisor-approved 2026-08-31)**: `post_bash_memory_update.py` carried
+the same defect C in its own file — it demanded a diff-driven memory pass for a git operation that
+never happened, twice: while writing `tasks/TASK_GUIDE_T095.md`, and again on this task's own
+commits. The Supervisor approved reusing `lib/shell_data.strip_heredoc_bodies` there. Captured
+`2026-08-31T09:25:04Z`, driving both the pre-fix version (`git show HEAD:...`) and the fixed one
+over the same three commands:
+
+```
+========================================================================
+BEFORE (HEAD, pre-fix)
+  heredoc write, body mentions a push, no git command on the line
+    -> FIRES memory-update prompt
+  a real push
+    -> FIRES memory-update prompt
+  heredoc write + a real push after the terminator
+    -> FIRES memory-update prompt
+
+========================================================================
+AFTER  (working tree)
+  heredoc write, body mentions a push, no git command on the line
+    -> silent
+  a real push
+    -> FIRES memory-update prompt
+  heredoc write + a real push after the terminator
+    -> FIRES memory-update prompt
+```
+
+One line changed at the matcher plus a guarded import — no second copy of the stripping logic. The
+guard degrades in the **opposite** direction to the merge gate's identically-shaped import, and
+deliberately: the merge gate blocks pushes, so an unavailable resolver must become a block; this
+hook only ever prompts, so it falls back to the pre-T095 raw-string search. A hook that goes silent
+after a real push loses information; one that over-prompts on a heredoc costs a paragraph. Covered
+by 13 tests in `.claude/hooks/tests/test_memory_hook_heredoc_data.py`, including the anti-evasion
+shape, the unterminated-heredoc case, the fallback direction, and an anti-vacuity probe that replays
+the heredoc against the pre-fix hook and asserts it fired.
 
 **DELTA**: A Stage 5 push from a worktree now passes the merge gate on the evidence the agent
 actually wrote in that worktree — no Supervisor hand-landing the review file on the integration
