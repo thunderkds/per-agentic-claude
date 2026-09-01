@@ -1802,3 +1802,57 @@ Known inconsistency, registered as **T098** rather than fixed in passing: `setup
 skips the Claude canon symlinks, but `update.sh` recreates them unconditionally, so a codex-only
 project regains them on the next update. The unconditional call may be a deliberate safety net
 inherited from T096's upgrade-path fix — decide before changing.
+
+## T095 merged: the merge gate reads worktree evidence, and command data stops being command text (2026-09-01)
+
+**Decision**: Three unrelated defects in `.claude/hooks/pre_bash_block_unsafe_merge.py`, fixed
+together because one blocked push surfaced all three.
+
+- **Defect A — evidence resolution is now multi-directory.** `has_filled_verify_row` searched only
+  the main checkout's `tasks/`, but since T064 the Evidence table lives in
+  `tasks/TASK_REVIEW_Txxx.md`, which Stage 3 writes **in the worktree, on the task branch**. Every
+  worktree-isolated task therefore read as `(no evidence row)`. New `evidence_search_dirs()` searches
+  the main checkout **first** (so the post-merge case is unchanged in behaviour and cost, and an
+  integrated file can never be shadowed), then each live worktree from `git worktree list --porcelain`.
+  Every enumeration failure — git absent, non-zero exit, timeout, unparsable output — degrades to
+  main-checkout-only, i.e. exactly pre-T095 behaviour. It can never degrade to "allow".
+  **Rejected at grill**: resolving the file from the branch via `git show` — this gate runs *before*
+  a push, when the commit may not be in the main checkout's object store at all.
+- **Defect B — the block message stopped prescribing a mechanism T047 measured as dead.** It said a
+  command is attributed "**only** via CLAUDE_ACTIVE_TASK — run it as `CLAUDE_ACTIVE_TASK=Txxx <cmd>`".
+  Both halves were wrong: a hook is a *sibling* process of the tool call and never inherits its
+  subshell, so the wrapper reaches nothing in-session; and "only" was false, since the state file is
+  a second channel. `ATTRIBUTION_REMEDY` now reuses the wording already proven in
+  `craft-spawn-prompt` element 6 and `task_context.py` slot 2 rather than composing a third phrasing.
+- **Defect C — classify the command, not the data it carries.** A `cat > f <<'EOF' … EOF` write whose
+  *body* mentioned a push was blocked as a push. New `.claude/hooks/lib/shell_data.py` strips
+  terminated heredoc bodies before the patterns run — same rule the gate already applied one level
+  down via `QUOTED_SPAN_PATTERN`. Deliberately **not a shell parser** (Simplicity First): header
+  recognition and terminator matching only. Bodies are replaced with a space, never deleted (deleting
+  can glue two words into a token that was never in the command). An **unterminated** heredoc is left
+  entirely alone — that errs toward over-blocking, which is recoverable, versus a silently disarmed
+  gate, which is not.
+
+**Why the two importers guard in opposite directions** (this looks like an inconsistency and is not):
+`pre_bash_block_unsafe_merge` blocks pushes, so an unavailable resolver must *become a block*;
+`post_bash_memory_update` only ever prompts, so it falls back to the identity function and the
+pre-T095 raw-string search. A hook that goes silent after a real push loses information; one that
+over-prompts on a heredoc costs a paragraph.
+
+**Files**: .claude/hooks/lib/shell_data.py (new), .claude/hooks/pre_bash_block_unsafe_merge.py,
+.claude/hooks/post_bash_memory_update.py, plus 50 new tests across
+.claude/hooks/tests/test_merge_gate_t095.py and test_memory_hook_heredoc_data.py (707 → 757).
+
+**Impact**: T094, T096 and T097 each merged only because the Supervisor hand-landed the review file
+on the integration branch first. T095 was the last task to pay that tax.
+
+**Open, deliberately not solved** (recorded in `tasks/TASK_REVIEW_T095.md`):
+1. Cross-worktree evidence is **unscoped by branch** — any live worktree's filled review file
+   satisfies the gate. Confirmed at runtime during Stage 5, not inferred: a worktree on an unrelated
+   branch supplied the evidence for a push on `fix/t900`. Accepted as the cheaper side of the
+   trade, but it is a genuine widening versus pre-T095, not merely "another place to look".
+2. The **quoted-span form of defect C is still live** in `post_bash_memory_update.py` — it fired
+   twice during T095's own Stage 5 run on `python3 -c` probes carrying `git push` inside a quoted
+   argument. T095 fixed heredoc bodies only.
+3. `lib/shell_data.py:39` docstring still says the memory hook is "untouched here (out of scope)",
+   stale as of `00c54c6` on the same branch. Stage 4 P2, left unapplied.

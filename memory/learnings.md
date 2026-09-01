@@ -1786,3 +1786,34 @@ the rejection has to be checked explicitly (`if ! _cap=$(f); then`) or it does n
 
 Found by *running* the shell path in a sandbox during review, not by reading it. Both P2s that
 mattered were reproduced before being fixed; reading alone had already missed them.
+
+## A hook that greps the command string treats the command's data as command text (2026-09-01, T095)
+
+**Pattern**: any hook deciding "is this a push/merge/dangerous op?" by `re.search` over
+`tool_input.command` will match text the command is *carrying* — a heredoc body being written to a
+file, a quoted argument to `python3 -c` — not just text the shell will execute. Symptom is a hook
+firing on a command that ran no git at all. Found by writing `tasks/TASK_GUIDE_T095.md`: a heredoc
+rejected by the merge gate it was documenting.
+
+**Fix shape**: strip data spans before matching, and strip *conservatively* — only terminated spans,
+only up to the terminator, replaced with a space rather than deleted. `.claude/hooks/lib/shell_data.py`
+is the shared implementation; `QUOTED_SPAN_PATTERN` in `pre_bash_block_unsafe_merge.py` is the same
+idea for quoted spans.
+
+**Still open**: `post_bash_memory_update.py` handles heredocs but not quoted spans, so
+`python3 -c '... git push ...'` still trips it.
+
+**Direction rule that generalises**: uncertainty in a data-stripping fix must resolve toward
+stripping *less*. Being wrong that way over-blocks, which an operator notices and recovers from;
+being wrong the other way silently disarms the gate, which nobody notices.
+
+## Stage 3 evidence lives in the worktree, so main-checkout-only lookups are structurally wrong (2026-09-01, T095)
+
+**Gotcha**: `ROOT` in a hook derives from the hook file's own location, and `settings.json` invokes
+hooks as `python3 "$CLAUDE_PROJECT_DIR"/.claude/hooks/...`. Anything resolved relative to `ROOT` is
+therefore the **main checkout** — while Stage 3 is worktree-isolated by mandate, so the artifacts
+being checked do not exist there until the branch merges. Any hook reading task artifacts must
+search worktrees too, main checkout first, degrading to main-checkout-only on any enumeration failure.
+
+**Related**: `$CLAUDE_PROJECT_DIR` is set inside a hook's own process but **empty inside a `Bash`
+tool call** — the root of T047 and T056. Spawn prompts must embed literal absolute paths.

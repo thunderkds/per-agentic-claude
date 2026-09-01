@@ -234,4 +234,4 @@
 - [Report / Report Slot / Scoring Dimension / Report Session](glossary.md) — canonical terms for the html-report skill and Stage 4 reporting system
 - [Thinking Report / Trade-Off Matrix / Thinking Session](glossary.md) — canonical terms for the thinking-report skill and Stage 0.5–2 decision system
 - [Pack / Core framework / Pack agent](glossary.md) — canonical terms for the optional pack system
-
+- [T095 merge gate: worktree evidence + command-vs-data] — the gate searches the main checkout first then every live worktree (Stage 3 writes evidence in the worktree); heredoc bodies are stripped before push-matching via `lib/shell_data.py`; the block message now prescribes the state file, not the dead `CLAUDE_ACTIVE_TASK=Txxx <cmd>` wrapper. Open: cross-worktree evidence is unscoped by branch, and quoted spans still trip `post_bash_memory_update.py`. → decisions.md, learnings.md
