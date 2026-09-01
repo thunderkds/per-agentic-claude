@@ -35,6 +35,11 @@ discovers — a plain-root `skills/` and `.claude/skills/` are both invisible to
 agent-guide directory, so `agents/` is not projected; your role doctrine reaches Codex through this
 file.
 
+A Codex-only install **stays** Codex-only: `update.sh` re-derives its harness set from what you pass
+on that run plus what is already present in the project, so a plain `update.sh` refreshes
+`.codex/skills/` and does not create the `.claude/{skills,agents}` links this project never asked
+for. Adding Claude later is an explicit `update.sh --harness claude`.
+
 ## What Codex cannot enforce here
 Codex has no equivalent of Claude Code's hooks or its `Skill`/`Agent` tooling. It cannot run
 `code-review`, `security-review`, `verify`, `ship`, or `migration-safety`, and it does not get the

@@ -243,6 +243,18 @@
   <strong>Restart Claude Code</strong> after install so it picks up the new
   <code>.claude/agents/</code>, <code>.claude/skills/</code>, and <code>.claude/settings.json</code>.
 </p>
+<p class="lead">
+  This installs for <strong>Claude Code</strong> by default. To install for a different CLI, pass
+  <code>--harness</code> (repeat it to select more than one):
+</p>
+<pre class="install">sh -c "$(curl -fsSL https://raw.githubusercontent.com/thunderkds/personal-agentic-claude/main/setup.sh)" -- --harness codex
+sh -c "$(curl -fsSL https://raw.githubusercontent.com/thunderkds/personal-agentic-claude/main/setup.sh)" -- --harness claude --harness codex</pre>
+<p class="lead">
+  Valid harnesses are <code>claude</code> and <code>codex</code>. An unknown or empty value is
+  rejected by name and the installer exits non-zero — nothing is written. Note the
+  <code>sh -c "$(curl ...)" --</code> form: a plain <code>curl ... | sh --harness codex</code> pipe
+  does not work, for the same reason it does not work for <code>--pack</code> (see below).
+</p>
 <p class="lead">To pull in newer harness changes later, run the update script from your repo root:</p>
 <pre class="install">sh update.sh</pre>
 </section>
@@ -263,6 +275,29 @@
   <li><strong>Untouched since install</strong> — silently overwritten with the latest upstream version.</li>
   <li><strong>Customized</strong> — shown a diff and prompted per file: overwrite / skip / view diff again.</li>
 </ul>
+
+<h3>Which harnesses get updated</h3>
+<p class="lead">
+  <code>update.sh</code> stores no harness state of its own. It re-derives the set on every run: a
+  harness is updated when you name it with <code>--harness</code> on that run, <em>or</em> when its
+  directory is already present in the project. That means:
+</p>
+<ul class="lead">
+  <li>A <strong>Codex-only</strong> project refreshes <code>.codex/skills/</code> and is not given
+    <code>.claude/{skills,agents}</code> it never asked for.</li>
+  <li>A <strong>Claude</strong> project keeps its <code>.claude/{skills,agents}</code> links
+    repaired — including when a link has gone missing, stale, absolute, or been replaced by a real
+    directory.</li>
+  <li>Adding a harness later is one explicit run:
+    <code>sh update.sh --harness codex</code>.</li>
+</ul>
+<p class="lead">
+  One edge worth knowing: if <em>both</em> <code>.claude/skills</code> and
+  <code>.claude/agents</code> are deleted outright, a plain <code>sh update.sh</code> leaves them
+  absent — with nothing present, the project is indistinguishable from one that never selected
+  Claude. Restore them with <code>sh update.sh --harness claude</code>, which installs on explicit
+  request regardless of what is present.
+</p>
 </section>
 
 <section id="install-variants">

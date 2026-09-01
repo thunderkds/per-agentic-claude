@@ -386,22 +386,32 @@ done
 # Requested on the command line, plus every harness whose destination directory
 # is already present — so an install made with `setup.sh --harness codex` stays
 # up to date under a plain `bash update.sh` without any new state to keep.
-# `claude` is excluded: its .claude/{skills,agents} links are handled separately.
+# `claude` is resolved by this same "requested or present" rule as every other
+# harness (T098) — it just checks presence at the two symlink destinations
+# rather than at a MANIFEST dest column, because claude has no MANIFEST=dest
+# pairs (it ships via harness_install_canon_symlinks, never a projected copy).
 resolve_projection_harnesses() {
   _manifest="$1"
   _resolved=""
   for _h in $VALID_HARNESSES; do
-    [ "$_h" = "claude" ] && continue
     _want=0
     for _r in $HARNESSES; do
       [ "$_r" = "$_h" ] && _want=1
     done
     if [ "$_want" -eq 0 ]; then
-      while IFS= read -r _line; do
-        _dest=$(harness_manifest_dest "$_line" "$_h")
-        [ -n "$_dest" ] || continue
-        if [ -e "./$_dest" ]; then _want=1; break; fi
-      done < "$_manifest"
+      if [ "$_h" = "claude" ]; then
+        # -e alone misses a broken (dangling) symlink, since it follows the
+        # target — AC3 requires a broken/absolute link to still be repaired,
+        # so presence also checks -L directly.
+        { [ -e "./.claude/skills" ] || [ -L "./.claude/skills" ]; } && _want=1
+        { [ -e "./.claude/agents" ] || [ -L "./.claude/agents" ]; } && _want=1
+      else
+        while IFS= read -r _line; do
+          _dest=$(harness_manifest_dest "$_line" "$_h")
+          [ -n "$_dest" ] || continue
+          if [ -e "./$_dest" ]; then _want=1; break; fi
+        done < "$_manifest"
+      fi
     fi
     [ "$_want" -eq 1 ] && _resolved="$_resolved $_h"
   done
@@ -448,21 +458,46 @@ main() {
   # just refreshed. Replaces each destination wholesale, so nothing upstream
   # removed can survive as an orphan alongside the new set.
   resolve_projection_harnesses "$manifest"
+  projected=""
+  claude_linked=0
   for h in $PROJECTION_HARNESSES; do
+    # claude has no MANIFEST=dest pairs to project — it is resolved into
+    # PROJECTION_HARNESSES above (so the presence rule is shared), but its
+    # actual install is the symlink step below, not a MANIFEST copy. It is
+    # therefore NOT added to `projected`: the summary must not claim a
+    # projection that this loop deliberately skipped.
+    [ "$h" = "claude" ] && continue
     log_info "Re-projecting canon for harness '$h'."
-    harness_project_manifest "$HARNESS_TEMP_DIR" "." "$manifest" "$h"
+    harness_project_manifest "$HARNESS_TEMP_DIR" "." "$manifest" "$h" || {
+      log_error "Update aborted: harness projection for '$h' failed. The target tree may be partial."
+      exit 2
+    }
+    projected="$projected $h"
   done
 
-  # Re-point .claude/{skills,agents} at the freshly copied plain-root canon.
-  # MANIFEST ships the canon at plain root; nothing else in this run touches
-  # .claude/skills, so without this an install whose link is missing, stale, or
-  # a leftover real directory would keep serving Claude Code the old content.
-  # Fails the run (set -e) rather than reporting "Update complete" over it.
-  harness_install_canon_symlinks .
+  # Re-point .claude/{skills,agents} at the freshly copied plain-root canon —
+  # only when claude was requested this run or already present (T098): a
+  # Codex-only project must not acquire Claude directories it never asked for,
+  # but an existing Claude install whose link is missing, stale, or a leftover
+  # real directory must keep being repaired. Fails the run (set -e) rather
+  # than reporting "Update complete" over a partial fix.
+  case " $PROJECTION_HARNESSES " in
+    *" claude "*) harness_install_canon_symlinks . ; claude_linked=1 ;;
+  esac
 
   log_info "Update complete. Re-recorded $lock"
-  if [ -n "$PROJECTION_HARNESSES" ]; then
-    log_info "Re-projected harness(es):$PROJECTION_HARNESSES"
+  if [ -n "$projected" ]; then
+    log_info "Re-projected harness(es):$projected"
+  fi
+  if [ "$claude_linked" -eq 1 ]; then
+    log_info "Harness 'claude': re-pointed .claude/{skills,agents} at the plain-root canon."
+  fi
+  # Nothing requested and nothing present. Say so and name the way out —
+  # otherwise a project whose canon links were deleted outright gets a bare
+  # "Update complete" with no hint that --harness would restore them.
+  if [ -z "$PROJECTION_HARNESSES" ]; then
+    log_info "No harness detected in this project — none requested, none already present."
+    log_info "Run 'update.sh --harness <name>' to install one. Valid harnesses: $VALID_HARNESSES"
   fi
 
   if [ "$UNRESOLVED" -gt 0 ]; then
