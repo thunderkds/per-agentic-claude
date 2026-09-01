@@ -12,6 +12,7 @@ complete before code ships.
 import json
 import os
 import re
+import subprocess
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -29,9 +30,16 @@ TRACE_DIR = os.path.join(ROOT, "memory", "event-trace")
 # stdout, which the harness reads as a non-blocking hook error and the merge
 # proceeds — the precise direction AC7 exists to prevent. So the import is
 # guarded and its failure is turned into an explicit block.
+#
+# `shell_data.strip_heredoc_bodies` (T095 defect C) is imported in the same
+# guarded block for the same reason, though it fails in the opposite direction:
+# losing it would make the gate classify heredoc *bodies* as commands again
+# (over-blocking, not under-blocking). Blocking on its absence keeps one rule
+# here — an unavailable resolver is a block — rather than two.
 sys.path.insert(0, os.path.join(HOOKS_DIR, "lib"))
 try:
     from guide_sections import read_guide_section  # noqa: E402
+    from shell_data import strip_heredoc_bodies  # noqa: E402
 except Exception as exc:  # pragma: no cover - exercised via subprocess test
     print(json.dumps({
         "decision": "block",
@@ -39,7 +47,8 @@ except Exception as exc:  # pragma: no cover - exercised via subprocess test
             "[hook:pre_bash] Evidence resolver unavailable "
             f"({type(exc).__name__}: {exc}) — cannot confirm Stage 5 verify "
             "evidence for any task, so this push/merge is blocked. Restore "
-            ".claude/hooks/lib/guide_sections.py."
+            ".claude/hooks/lib/guide_sections.py and "
+            ".claude/hooks/lib/shell_data.py."
         ),
     }))
     sys.exit(0)
@@ -80,8 +89,13 @@ BLOCKED_PATTERNS = [
 #
 # Two known limits, both erring toward fail-closed:
 #   * An invocation wrapped entirely in quotes (`bash -c "python3 -m pytest"`)
-#     is treated as a mention and rejected. Run the runner directly, or export
-#     CLAUDE_ACTIVE_TASK and run it unwrapped.
+#     is treated as a mention and rejected. Run the runner directly, unwrapped.
+#     (Pre-T095 this said "or export CLAUDE_ACTIVE_TASK and run it unwrapped",
+#     which carried the same false premise as the block message below: T047
+#     measured that a hook is a *sibling* process of the tool call and never
+#     inherits a `Bash` call's subshell, so an in-session `export` reaches
+#     nothing. Attribution is a separate concern from this rule anyway — see
+#     ATTRIBUTION_REMEDY.)
 #   * The gate proves a runner was *invoked*, not that a test suite *passed*
 #     (`pytest --version` would qualify). `is_error: false` excludes a failing
 #     run, which is the strongest signal the trace carries.
@@ -229,24 +243,144 @@ VERIFY_ROW_PATTERN = re.compile(
 UNCHECKED_PASS_PATTERN = re.compile(r"☐\s*pass\b", re.IGNORECASE)
 
 
+# --- Where the Evidence table can live (T095 defect A) ----------------------
+#
+# `TASKS_DIR` is always the **main checkout's** `tasks/`: `ROOT` derives from
+# this file's own location and `settings.json` invokes every hook as
+# `python3 "$CLAUDE_PROJECT_DIR"/.claude/hooks/...`. But since T064 the Evidence
+# table lives in `tasks/TASK_REVIEW_Txxx.md`, which the agent creates **in its
+# worktree, on its task branch** — Stage 3 is worktree-isolated by mandate
+# (`CLAUDE.md`), so until the branch merges that file does not exist in the main
+# checkout at all. Every worktree-isolated task therefore read as
+# `(no evidence row)`; three consecutive sessions paid for it by hand-landing the
+# review file on the integration branch before merging.
+#
+# The worktree list is an *additional place to look*, never a reason to skip the
+# check. So every failure of the enumeration — git absent, non-zero exit, a
+# timeout, unparsable output — degrades to "main checkout only", which is exactly
+# the pre-T095 behaviour and still fails closed. It can never degrade to "allow".
+#
+# Resolving the file from the *branch* via `git show` was considered and rejected
+# at grill: this gate runs BEFORE a push, when the commit may not exist in the
+# main checkout's object store at all.
+GIT_WORKTREE_TIMEOUT_S = 5
+
+
+def worktree_tasks_dirs():
+    """Each live worktree's `tasks/` directory, main checkout excluded.
+
+    Never raises and never blocks for long: returns `[]` on any failure, and the
+    caller still has the main checkout to search.
+    """
+    try:
+        completed = subprocess.run(
+            ["git", "worktree", "list", "--porcelain"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            timeout=GIT_WORKTREE_TIMEOUT_S,
+        )
+        if completed.returncode != 0:
+            return []
+        dirs = []
+        for line in completed.stdout.splitlines():
+            if not line.startswith("worktree "):
+                continue
+            path = line[len("worktree "):].strip()
+            if not path or os.path.abspath(path) == os.path.abspath(ROOT):
+                continue
+            dirs.append(os.path.join(path, "tasks"))
+        return dirs
+    except Exception:
+        return []
+
+
+def evidence_search_dirs(tasks_dir=None):
+    """The ordered directories to resolve a task's Evidence section across.
+
+    `tasks_dir` keeps its existing single-directory shape — every current caller
+    and test passes one path, or None for "the live repo". It additionally
+    accepts a sequence of paths, which is how a test injects a constructed
+    directory list instead of shelling out to git.
+
+    **Main checkout first**, always: the common post-merge case then resolves on
+    the first candidate, unchanged in behaviour and cost, and a worktree copy can
+    never shadow evidence already integrated.
+    """
+    if tasks_dir is None:
+        return [TASKS_DIR] + worktree_tasks_dirs()
+    if isinstance(tasks_dir, str):
+        return [tasks_dir]
+    try:
+        return [d for d in tasks_dir if isinstance(d, str) and d]
+    except TypeError:
+        return [TASKS_DIR]
+
+
 def has_filled_verify_row(task_id, tasks_dir=None):
-    """True only when the task's Evidence table — wherever it resolves, guide
-    first then `TASK_REVIEW_Txxx.md` — carries a filled `verify` row.
+    """True only when the task's Evidence table — wherever it resolves: the main
+    checkout first, then each live worktree, and within each of those the guide
+    first then `TASK_REVIEW_Txxx.md` — carries a filled `verify` row. The first
+    filled row found wins.
 
     **Fails closed.** A missing guide, a missing review file, an unreadable
     one, an absent Evidence section, an unfilled row, or a row still carrying
-    the template's unchecked `☐ pass` placeholder all return False. This is
+    the template's unchecked `☐ pass` placeholder all return False — in every
+    searched directory, and when there are no directories to search. This is
     the one place in T064 where a wrong answer is silent and repo-wide: if
     "review file missing" ever became anything other than "no evidence", the
     merge gate would stop gating on every task at once.
     """
-    section = read_guide_section(task_id, "Evidence", tasks_dir or TASKS_DIR)
-    if not section:
-        return False
-    for match in VERIFY_ROW_PATTERN.finditer(section):
-        if not UNCHECKED_PASS_PATTERN.search(match.group("result")):
-            return True
+    for directory in evidence_search_dirs(tasks_dir):
+        section = read_guide_section(task_id, "Evidence", directory)
+        if not section:
+            continue
+        for match in VERIFY_ROW_PATTERN.finditer(section):
+            if not UNCHECKED_PASS_PATTERN.search(match.group("result")):
+                return True
     return False
+
+
+# --- What to actually do about an unattributed Bash call (T095 defect B) ----
+#
+# This gate used to end its block with "a Bash command is attributed to a task
+# **only** via CLAUDE_ACTIVE_TASK — run the task's verification command as
+# `CLAUDE_ACTIVE_TASK=Txxx <command>`". Two things were wrong with it, and it
+# was printed at the exact moment an operator is looking for a way out:
+#
+#   * The mechanism does not work from inside a session. T047 measured it: the
+#     harness spawns a hook as a *sibling* process of the tool call, not a child
+#     of the command inside it, so the hook inherits the harness's environment
+#     and never the subshell a `Bash` call creates. Every record produced under
+#     that instruction landed in `_untagged.jsonl`, and this gate then correctly
+#     failed closed on it — blocking honest tasks.
+#   * "only" was false. The env var *is* a working channel when it is set in the
+#     process that launches the session; the state file is a second one, and the
+#     only one reachable mid-session. `task_context.py`'s precedence list has
+#     carried both since T047.
+#
+# The wording below is the one already written and proven in
+# `craft-spawn-prompt` element 6 and `task_context.py`'s slot 2, condensed —
+# deliberately reused rather than re-composed, because a third phrasing of this
+# mechanism is exactly how the first two drifted apart. The absolute-path
+# requirement is named because it is load-bearing: a sub-agent's cwd is its own
+# worktree, so a relative path (or an unset `$CLAUDE_PROJECT_DIR`, which is
+# empty inside a `Bash` tool call) silently writes a file the live hook never
+# reads. That was T047's own Stage 4 P1 finding.
+ATTRIBUTION_REMEDY = (
+    "Note: if a task above is missing its trace record rather than its evidence "
+    "row, attribute your Bash calls by writing the active-task state file first: "
+    "`mkdir -p <main-checkout>/.claude/hooks/.state && printf '%s\\n%s\\n' "
+    "\"Txxx\" \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\" > "
+    "<main-checkout>/.claude/hooks/.state/active_task` — using the literal "
+    "absolute path of the main checkout (not $CLAUDE_PROJECT_DIR, which is empty "
+    "inside a Bash tool call, and not a relative path, which resolves into your "
+    "worktree). Valid for CLAUDE_ACTIVE_TASK_STATE_MAX_AGE_S seconds (default "
+    "6h). CLAUDE_ACTIVE_TASK=Txxx <command> does NOT work from inside a session: "
+    "a hook is a sibling process of the tool call and never inherits its "
+    "subshell (T047). The env var only takes effect when set before the session "
+    "starts."
+)
 
 
 def main():
@@ -267,7 +401,12 @@ def main():
     if not isinstance(command, str):
         sys.exit(0)
 
-    if not any(re.search(p, command) for p in BLOCKED_PATTERNS):
+    # Classify the command, not the data it carries (T095 defect C). A heredoc
+    # body is an argument being written to a file, so a `git push` inside one is
+    # a mention; the body is replaced with a space before the push/merge/rebase
+    # patterns run. Only terminated bodies are removed, and only up to their
+    # terminator, so a real `; git push` on the same command line is still seen.
+    if not any(re.search(p, strip_heredoc_bodies(command)) for p in BLOCKED_PATTERNS):
         sys.exit(0)
 
     try:
@@ -325,10 +464,7 @@ def main():
                 "[hook:pre_bash] Pipeline gate failed — cannot push/merge:\n  • "
                 + "\n  • ".join(blockers)
                 + "\nComplete Stage 4 review and Stage 5 verify first."
-                + "\n  Note: a Bash command is attributed to a task only via"
-                + " CLAUDE_ACTIVE_TASK — run the task's verification command as"
-                + " `CLAUDE_ACTIVE_TASK=Txxx <command>` or no trace record is"
-                + " filed under it."
+                + "\n  " + ATTRIBUTION_REMEDY
             )
         }
         print(json.dumps(result))
