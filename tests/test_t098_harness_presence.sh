@@ -230,8 +230,8 @@ replacement_a = '  for _h in $VALID_HARNESSES; do\n    [ "$_h" = "claude" ] && c
 assert text.count(needle_a) == 1, "resolve_projection_harnesses anchor not found exactly once"
 text = text.replace(needle_a, replacement_a, 1)
 
-needle_b = '  case " $PROJECTION_HARNESSES " in\n    *" claude "*) harness_install_canon_symlinks . ;;\n  esac\n'
-replacement_b = '  harness_install_canon_symlinks .\n'
+needle_b = '  case " $PROJECTION_HARNESSES " in\n    *" claude "*) harness_install_canon_symlinks . ; claude_linked=1 ;;\n  esac\n'
+replacement_b = '  harness_install_canon_symlinks .\n  claude_linked=1\n'
 assert text.count(needle_b) == 1, "symlink-install gate anchor not found exactly once"
 text = text.replace(needle_b, replacement_b, 1)
 
@@ -301,6 +301,73 @@ if ( cd "$T8B" && HARNESS_SKILL_BODY_CAP=0 SUPERVISOR_REPO="file://$FIXTURE" SUP
   pass "AC8: HARNESS_SKILL_BODY_CAP=0 still disables the check (setup succeeds)"
 else
   fail "AC8: HARNESS_SKILL_BODY_CAP=0 unexpectedly failed"; cat "$WORK/last.log" >&2
+fi
+
+# =============================================================================
+# Test 9 (AC9) — the closing summary must not claim a projection that did not
+# happen. `claude` is resolved into PROJECTION_HARNESSES but deliberately
+# skipped by the projection loop, so naming it under "Re-projected harness(es)"
+# is a false statement about work performed (found at the CLI during /verify).
+# =============================================================================
+T9=$(new_target target-summary-claude)
+if run_setup "$T9"; then
+  if run_update "$T9"; then
+    if grep -q "Re-projected harness(es):.*claude" "$WORK/last.log"; then
+      fail "AC9: summary claims 'Re-projected harness(es): claude' but claude is never projected"
+    else
+      pass "AC9: claude is not listed as re-projected"
+    fi
+    if grep -q "re-pointed .claude/{skills,agents}" "$WORK/last.log"; then
+      pass "AC9: the claude symlink step is reported on its own terms"
+    else
+      fail "AC9: no line reports what was actually done for claude"
+    fi
+  else
+    fail "AC9: update.sh failed — see $WORK/last.log"; cat "$WORK/last.log" >&2
+  fi
+fi
+
+# A codex+claude project must still name codex (and only codex) as projected.
+T9B=$(new_target target-summary-both)
+if run_setup "$T9B" --harness claude --harness codex && run_update "$T9B"; then
+  if grep -q "Re-projected harness(es): codex$" "$WORK/last.log"; then
+    pass "AC9: a claude+codex project reports exactly the projected set (codex)"
+  else
+    fail "AC9: projected-set summary wrong for claude+codex"
+    grep "Re-projected" "$WORK/last.log" >&2 || true
+  fi
+fi
+
+# =============================================================================
+# Test 10 (AC10) — both canon links deleted on a claude project: the links
+# correctly stay absent (fully-absent is indistinguishable from "never had
+# claude"), but the run must say so and name the way back, instead of printing
+# a bare "Update complete" with no hint that --harness claude would restore it.
+# =============================================================================
+T10=$(new_target target-empty-set)
+if run_setup "$T10"; then
+  rm -f "$T10/.claude/skills" "$T10/.claude/agents"
+  if run_update "$T10"; then
+    if grep -q "No harness detected in this project" "$WORK/last.log"; then
+      pass "AC10: an empty resolved set is reported, not silent"
+    else
+      fail "AC10: nothing reported when no harness was requested or present"
+      cat "$WORK/last.log" >&2
+    fi
+    if grep -q -- "--harness <name>" "$WORK/last.log" \
+       && grep -q "Valid harnesses: claude codex" "$WORK/last.log"; then
+      pass "AC10: the message names the remedy and the valid harnesses"
+    else
+      fail "AC10: the message does not name --harness or the valid values"
+    fi
+    if [ ! -e "$T10/.claude/skills" ] && [ ! -e "$T10/.claude/agents" ]; then
+      pass "AC10: the links still stay absent (behaviour unchanged, only reporting added)"
+    else
+      fail "AC10: links were re-created — the reporting fix changed behaviour"
+    fi
+  else
+    fail "AC10: update.sh failed — see $WORK/last.log"; cat "$WORK/last.log" >&2
+  fi
 fi
 
 # ── Summary ───────────────────────────────────────────────────────────────────

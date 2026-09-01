@@ -458,16 +458,21 @@ main() {
   # just refreshed. Replaces each destination wholesale, so nothing upstream
   # removed can survive as an orphan alongside the new set.
   resolve_projection_harnesses "$manifest"
+  projected=""
+  claude_linked=0
   for h in $PROJECTION_HARNESSES; do
     # claude has no MANIFEST=dest pairs to project — it is resolved into
     # PROJECTION_HARNESSES above (so the presence rule is shared), but its
-    # actual install is the symlink step below, not a MANIFEST copy.
+    # actual install is the symlink step below, not a MANIFEST copy. It is
+    # therefore NOT added to `projected`: the summary must not claim a
+    # projection that this loop deliberately skipped.
     [ "$h" = "claude" ] && continue
     log_info "Re-projecting canon for harness '$h'."
     harness_project_manifest "$HARNESS_TEMP_DIR" "." "$manifest" "$h" || {
       log_error "Update aborted: harness projection for '$h' failed. The target tree may be partial."
       exit 2
     }
+    projected="$projected $h"
   done
 
   # Re-point .claude/{skills,agents} at the freshly copied plain-root canon —
@@ -477,12 +482,22 @@ main() {
   # real directory must keep being repaired. Fails the run (set -e) rather
   # than reporting "Update complete" over a partial fix.
   case " $PROJECTION_HARNESSES " in
-    *" claude "*) harness_install_canon_symlinks . ;;
+    *" claude "*) harness_install_canon_symlinks . ; claude_linked=1 ;;
   esac
 
   log_info "Update complete. Re-recorded $lock"
-  if [ -n "$PROJECTION_HARNESSES" ]; then
-    log_info "Re-projected harness(es):$PROJECTION_HARNESSES"
+  if [ -n "$projected" ]; then
+    log_info "Re-projected harness(es):$projected"
+  fi
+  if [ "$claude_linked" -eq 1 ]; then
+    log_info "Harness 'claude': re-pointed .claude/{skills,agents} at the plain-root canon."
+  fi
+  # Nothing requested and nothing present. Say so and name the way out —
+  # otherwise a project whose canon links were deleted outright gets a bare
+  # "Update complete" with no hint that --harness would restore them.
+  if [ -z "$PROJECTION_HARNESSES" ]; then
+    log_info "No harness detected in this project — none requested, none already present."
+    log_info "Run 'update.sh --harness <name>' to install one. Valid harnesses: $VALID_HARNESSES"
   fi
 
   if [ "$UNRESOLVED" -gt 0 ]; then
