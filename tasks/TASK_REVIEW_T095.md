@@ -17,8 +17,8 @@
 | **New test(s) cover Acceptance Criteria (file paths pasted)** | ☑ pass | `.claude/hooks/tests/test_merge_gate_t095.py` (37 tests) and `.claude/hooks/tests/test_memory_hook_heredoc_data.py` (13 tests, the Supervisor-approved `post_bash_memory_update.py` reuse) — 50 new tests, all against constructed fixtures. Defect A: AC1 (worktree-only evidence found, at the entry point and at `has_filled_verify_row`), AC2 (review file nowhere → still `(no evidence row)`), AC3 ×6 fail-closed inputs re-asserted with the worktree search path active, enumeration-failure degradation, porcelain parsing. Defect B: AC4, AC5 (both directions), AC6. Defect C: AC7, AC8 ×3 (after the terminator, before the heredoc, on the header line), unterminated-heredoc fail-closed, terminator forms, here-string, multi-heredoc. AC9 anti-vacuity: `test_worktree_evidence_resolution_depends_on_the_fix` and `test_heredoc_allowance_depends_on_the_fix` — each reverts its fix in-place and asserts the scenario goes red again. |
 | Verification command run | ☑ pass | `python3 -m pytest .claude/hooks/tests/ -q && python3 -m pytest tests/ -q` → `757 passed in 8.99s` then `40 passed in 0.05s`. Baseline was 707 before T095 (AC10 asks for ≥697/≥707); +50 is exactly this task's new tests (37 for the three merge-gate defects, 13 for the Supervisor-approved `post_bash_memory_update.py` reuse), no pre-existing test changed. Earlier run at 2026-08-31T09:18:56Z, before the scope addition, showed `744 passed`. |
 | Negative cases hold | ☑ pass | Fail-closed is the whole risk here and is asserted from three sides: AC3's six named inputs (missing guide, missing review file, unreadable file, absent Evidence section, unfilled row, template `☐ pass` placeholder) all return False *with* the worktree path active; every `git worktree list` failure mode (git absent, non-zero exit, exception) degrades to main-checkout-only, never to allow; and AC8's anti-evasion probe confirms a real `; git push` after a heredoc terminator still blocks. Both AC9 anti-vacuity probes go red on a reverted fix, so none of the above is vacuous. |
-| verify | ☐ pass / ☐ fail / ☐ N/A | [what was observed — must literally state "pass" or "fail" here too, e.g. "skill run, feature confirmed working — pass": the merge gate scans this Notes column for the word "pass", not just the Result column] |
-| Review scope bounded to the change's blast radius (affected set, not whole repo) | ☐ pass / ☐ fail | [what was reviewed vs. skipped, and why] |
+| verify | ☑ pass | Stage 5 `/verify` run from the **main checkout** 2026-09-01, active-task state file written first so the trace record files where the gate reads it — pass. Driven at the hooks' real CLI entry point (the surface `settings.json` uses) against a throwaway fixture repo with a **real** `git worktree`: board row T900 in Ready for Review, evidence row present only in `<worktree>/tasks/TASK_REVIEW_T900.md` on branch `fix/t900`. Pre-fix (`git show v2:`) vs. fixed, identical events. Defect A: `(no evidence row)` → gate finds the worktree row and advances. Defect B: full state-file remedy captured from the live block message. Defect C: heredoc write BLOCKED pre-fix → ALLOWED fixed; reproduced live in-session first, where the pre-fix `post_bash_memory_update.py` fired "Git operation detected" on a `cat > file` heredoc with no git command. Probes held: real `; git push` after the terminator still blocks; deleting the review file returns `(no evidence row)` (fail-closed); unterminated heredoc not stripped; empty command allowed; malformed stdin exits 0 without a traceback. One ⚠️ surfaced — see Findings note on unscoped cross-worktree evidence. |
+| Review scope bounded to the change's blast radius (affected set, not whole repo) | ☑ pass | Stage 4 `code-review` scoped to `git diff v2..HEAD` — 3 source files (`lib/shell_data.py`, `pre_bash_block_unsafe_merge.py`, `post_bash_memory_update.py`) plus their 2 test files and this review doc; 1317 insertions. Direct callers checked; nothing outside the diff + caller set reviewed. Reviewers: 4 always-on, plus `security-reviewer` (gate logic + shell-command parsing) and `adversarial-reviewer` (>50 changed lines); `performance`/`migration`/`api` skipped — no queries, no schema, no public API. Reachability N/A (`Depends on: None`; hooks invoked by `settings.json`, verified present). Result: 0 P0, 0 P1, 3 P2, 1 P3 — no merge blockers, 0 safe fixes applied (P2/P3 are suggestions per the skill). |
 | Full smoke suite still green (no regression) | ☑ pass | `tests/` 40 passed, unchanged. `.claude/hooks/tests/` 707 → 757, the delta being this task's own new tests only. |
 | **UI: Visual regression (diff or verdict pasted)** | ☑ N/A | Pure-backend task: one Python hook, one new hook lib module, one test file. No UI component, no rendered surface. |
 | **UI: Design-system compliance (tokens/colors/typography verified)** | ☑ N/A | Same reason — no UI surface in scope. |
@@ -252,3 +252,27 @@ is corroborated by a real, non-error `Bash` record in `memory/event-trace/T095.j
 > from the main checkout will file the corroborating record where the gate reads it. Details and
 > the suggested follow-up are in the agent's report; the state file's anchoring is explicitly out of
 > T095's scope, so nothing was changed about it here.
+
+---
+
+## Stage 4/5 reviewer notes (open, non-blocking)
+
+Recorded 2026-09-01 at merge. Neither blocks T095; both are follow-up material.
+
+- **⚠️ Cross-worktree evidence is unscoped.** `evidence_search_dirs` accepts a filled verify row
+  from *any* live worktree, with no check that the worktree is on the task's branch. Confirmed at
+  runtime, not by reading: a second worktree on branch `unrelated` carrying the review file
+  satisfied the gate for a push on `fix/t900`, with the file absent from `fix/t900`'s own worktree.
+  This is a real widening versus pre-T095, where evidence had to be integrated into the main
+  checkout. Accepted deliberately — the alternative cost T094, T096 and T097 a hand-landed review
+  file each — but it is a widening, not merely "an additional place to look", and should be named
+  as one in the module comment.
+- **⚠️ The sibling misclassification is still live for quoted spans.** T095 fixed heredoc bodies
+  only. `post_bash_memory_update.py` fired "Git operation detected" twice during this task's own
+  Stage 5 run, on `python3 -c` probes carrying `git push` inside a *quoted argument*.
+  `pre_bash_block_unsafe_merge.py` already draws this line one layer down via
+  `QUOTED_SPAN_PATTERN`. Follow-up task, not a widening of T095.
+- `lib/shell_data.py:39` — module docstring still reads "That hook is untouched here (out of
+  scope); this module is where its fix would come from", stale as of `00c54c6` on this same branch,
+  which does fix `post_bash_memory_update.py`. P2 from Stage 4, left unapplied per the skill's
+  P2/P3-are-suggestions rule.
