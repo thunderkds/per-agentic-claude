@@ -1728,7 +1728,9 @@ does not cover a bridge the copy does not create.
 
 Fix shape worth reusing: one shared `harness_install_canon_symlinks` in `lib/harness-fetch.sh`
 called by both installers; a pre-existing real directory is **moved aside to `<link>.bak`**, never
-deleted, and a `.bak` collision hard-fails rather than clobbering an earlier rescue.
+deleted, and a `.bak` collision hard-fails rather than clobbering an earlier rescue. (T098 later
+gated `update.sh`'s call on presence rather than calling it every run — the repair path survives,
+the manufacture-from-nothing case does not.)
 
 ## Untracked files in the main checkout do not reach a worktree (T096, 2026-08-28)
 
@@ -1817,3 +1819,37 @@ search worktrees too, main checkout first, degrading to main-checkout-only on an
 
 **Related**: `$CLAUDE_PROJECT_DIR` is set inside a hook's own process but **empty inside a `Bash`
 tool call** — the root of T047 and T056. Spawn prompts must embed literal absolute paths.
+
+## A test that encodes the behaviour you are changing is not a regression (T098, 2026-09-01)
+
+`tests/test_update.sh` test 8 asserted that `update.sh` restores the canon symlinks
+unconditionally — which *was* the defect T098 was registered to remove. The implementing agent
+rewrote it and flagged the rewrite as a judgment call it wanted reviewed, which is the right
+instinct: silently weakening a test is how a fix launders itself past its own suite.
+
+What made this rewrite legitimate rather than convenient, and the check worth reusing:
+
+1. The old assertion encoded the behaviour under change, not an invariant that survives it.
+2. It was **split, not deleted** — the file now asserts both that a no-flag run leaves unrequested
+   links absent *and* that `--harness claude` still restores them. The original AC13 intent
+   (an install can always be repaired) survives, under explicit request.
+3. Assertion count went **up** (29 -> 31), not down.
+
+A rewrite failing any of those three is a weakened test wearing a rationale.
+
+## Reporting is part of the behaviour: two findings only the CLI showed (T098, 2026-09-01)
+
+Stage 4 `code-review` read the diff and rated the summary line a P2 by inference. Stage 5 `/verify`
+drove the actual installer and turned the same line into an observation — and found a second thing
+review had not flagged at all:
+
+- `Re-projected harness(es): claude` printed on every Claude project, but the projection loop
+  `continue`s past `claude` (it has no `MANIFEST` dest pairs). The summary was built from the
+  *resolved* set instead of from what the loop *did*. Fix: accumulate a `projected` list inside the
+  loop, so the message cannot outrun the work.
+- With both canon links deleted, the run printed a bare `Update complete` — correct behaviour, zero
+  signal, and no hint that `--harness claude` was the way back.
+
+Generalisable: **when a set is resolved in one place and consumed in another, report from the
+consumer, not the resolver.** And an empty resolved set is a state worth naming — silence reads as
+success. Neither finding is visible from a diff; both took ~2 minutes at the CLI.

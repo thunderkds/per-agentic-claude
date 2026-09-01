@@ -1799,9 +1799,9 @@ decision, not a stopping point reached by accident: DDR-0006's follow-up says th
 cost/benefit inverts at N=4, so adding harnesses casually would cross that line silently.
 
 Known inconsistency, registered as **T098** rather than fixed in passing: `setup.sh --harness codex`
-skips the Claude canon symlinks, but `update.sh` recreates them unconditionally, so a codex-only
-project regains them on the next update. The unconditional call may be a deliberate safety net
-inherited from T096's upgrade-path fix — decide before changing.
+skipped the Claude canon symlinks, but `update.sh` recreated them unconditionally, so a codex-only
+project regained them on the next update. **Resolved by T098 (merged 2026-09-01)** — see
+"T098 merged" below.
 
 ## T095 merged: the merge gate reads worktree evidence, and command data stops being command text (2026-09-01)
 
@@ -1856,3 +1856,33 @@ on the integration branch first. T095 was the last task to pay that tax.
    argument. T095 fixed heredoc bodies only.
 3. `lib/shell_data.py:39` docstring still says the memory hook is "untouched here (out of scope)",
    stale as of `00c54c6` on the same branch. Stage 4 P2, left unapplied.
+
+## T098 merged: `claude` is presence-detected like every other harness (2026-09-01)
+
+**Decision**: `update.sh` no longer calls `harness_install_canon_symlinks` unconditionally. `claude`
+is resolved by the same rule as every other harness — installed when **requested on this run**
+(`--harness claude`) or **already present** — and the special case is gone from
+`resolve_projection_harnesses`.
+
+The fork was genuine and was locked at Stage 2 before any code: presence-detect, versus
+document-the-unconditional-call-as-deliberate, versus a strict lockfile. Document-as-deliberate
+leaves a Codex-only project permanently carrying directories it never asked for; strict-lockfile
+drops T096's repair path, which exists precisely so an upgrade cannot leave Claude Code reading a
+stale `.claude/skills`. Presence-detection keeps the repair path and drops only the
+manufacture-from-nothing case.
+
+**The detail that made it correct, and was not in the guide.** Presence must test `-e` **or** `-L`.
+`-e` follows a symlink, so a *dangling* link reads as absent — and a broken or absolute link is
+exactly the state AC3 requires to be repaired. Testing `-e` alone would have made the fix fail its
+own acceptance criterion while every happy-path test stayed green. The implementing agent found this
+while working and added a dedicated test; `/verify` then confirmed it at the CLI by deleting
+`.claude/skills` outright, replacing `.claude/agents` with `-> /absolute/gone`, and watching a
+plain `update.sh` restore both.
+
+**Accepted consequence**: if *both* links are deleted, a plain `update.sh` leaves them absent —
+with nothing present, the project is genuinely indistinguishable from one that never selected
+Claude. `update.sh --harness claude` restores them, and the run now says so rather than printing a
+bare `Update complete`.
+
+`setup.sh` and `update.sh` also now abort with a named message when `harness_project_manifest`
+fails, instead of continuing over a partial tree (the second, smaller item T097's verify raised).
