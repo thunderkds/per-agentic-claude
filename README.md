@@ -38,6 +38,21 @@ This fetches the framework into a temporary clone, copies every `MANIFEST`-liste
 `memory/`. No persistent central clone is required. After installing, restart Claude Code in the
 project so the deployed hooks in `.claude/settings.json` are picked up.
 
+By default this installs for **Claude Code**. To install for a different CLI, pass `--harness`:
+
+```sh
+sh -c "$(curl -fsSL https://raw.githubusercontent.com/thunderkds/personal-agentic-claude/main/setup.sh)" -- --harness codex                    # Codex only
+sh -c "$(curl -fsSL https://raw.githubusercontent.com/thunderkds/personal-agentic-claude/main/setup.sh)" -- --harness claude --harness codex   # both
+```
+
+(The `sh -c "$(curl ...)" --` form is required to pass flags: a plain `curl ... | sh --harness codex`
+pipe has `sh` reject the flag as its own before it ever reads the script.)
+
+The selection is not stored as separate state. Later `update.sh` runs re-derive it: a harness is
+updated when you name it with `--harness` on that run, **or** when its directory is already present
+in the project. So a Codex-only install stays Codex-only across updates, and a Claude install keeps
+its `.claude/{skills,agents}` links repaired, without either project having to remember a flag.
+
 Installing from a fork, installing packs, or updating an existing install (`update.sh`)? See the
 [site](site/index.html) for the full Quick Start, Options table, and Update flow.
 
