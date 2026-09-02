@@ -234,9 +234,16 @@ naive strip.
 
 ## Completion Checklist
 
-- [ ] Requirement Fidelity Gate signed off
-- [ ] BEFORE captured before the first implementation commit
-- [ ] AC1–AC8 covered by passing automated assertions
-- [ ] Verification Command run, output pasted into Evidence
-- [ ] AFTER + DELTA + WITNESS filled
-- [ ] UI Evidence rows ☐ N/A (pure-infrastructure task, no UI surface)
+- [x] Requirement Fidelity Gate signed off — with reasoning per box, before any implementation
+      commit (`b098188` predates `af737d9`)
+- [x] BEFORE captured before the first implementation commit — real output at `ced5ddd`, committed
+      in `b098188`
+- [x] AC1–AC8 covered by passing automated assertions — 31 in
+      `.claude/hooks/tests/test_quoted_spans_t099.py`, including AC8's two mandatory anti-vacuity
+      probes
+- [x] Verification Command run, output pasted into Evidence — 752 → 783 hook tests; the 6 failures
+      are pre-existing and measured as such at `ced5ddd`
+- [x] AFTER + DELTA + WITNESS filled
+- [x] UI Evidence rows ☑ N/A (pure-infrastructure task, no UI surface)
+- [ ] Stage 5 `verify` — **outstanding**, user-invoked only; the `verify` Evidence row is
+      deliberately left unfilled until then
