@@ -84,11 +84,32 @@ asymmetry is the task.
 
 ### Requirement Fidelity Gate (sign off BEFORE implementation)
 
-- [ ] I can state, in my own words, why `bash -c "…"` makes quoted spans different from heredoc
+- [x] I can state, in my own words, why `bash -c "…"` makes quoted spans different from heredoc
       bodies, and I have reproduced the three-row ALLOW table above myself.
-- [ ] I understand that a false negative in the push matcher fails **open**, and that this is the
+      **Signed off (Common-Infrastructure-Agent, 2026-09-02T03:31Z).** A heredoc body has a
+      *syntactic* destination: `<<'EOF' … EOF` is text being fed to a redirection, so the shell will
+      never execute it, whatever it says. A quoted span has no destination of its own — it is an
+      argument, and whether the shell executes it is decided entirely by the *command it is an
+      argument to*. `echo "git push"` prints it; `bash -c "git push"` runs it. Same bytes, opposite
+      meaning, and nothing inside the span distinguishes them. So a quoted span can only be
+      classified by looking left, at its wrapper — which is exactly the lookup heredoc stripping
+      never needs. Three-row table reproduced above (see `tasks/TASK_REVIEW_T099.md` BEFORE):
+      all three block today, all three would be allowed by an unconditional quoted-span strip, and
+      two of the three are real pushes.
+- [x] I understand that a false negative in the push matcher fails **open**, and that this is the
       opposite of `invokes_test_runner`'s failure direction.
-- [ ] I have confirmed which of the two hooks' matchers currently lack quoted-span handling.
+      **Signed off.** `invokes_test_runner` returns "was a runner invoked?"; a false negative there
+      answers "not verified", so the gate refuses the merge — the operator loses time. `main()`'s
+      matcher returns "is this a push?"; a false negative there answers "not a push", so the gate
+      steps aside and the push ships un-reviewed — and nobody is told. Same stripping, opposite
+      cost, which is why the same pattern cannot simply be reused in the second place.
+- [x] I have confirmed which of the two hooks' matchers currently lack quoted-span handling.
+      **Signed off.** Both. `pre_bash_block_unsafe_merge.py` defines `QUOTED_SPAN_PATTERN` at line
+      105 but uses it in exactly one place — `invokes_test_runner` (line 189), the evidence matcher.
+      `main()`'s `BLOCKED_PATTERNS` loop sees only `strip_heredoc_bodies(command)`.
+      `post_bash_memory_update.py` has no quoted-span handling at all — its `GIT_MEMORY_PATTERNS`
+      loop likewise sees only `strip_heredoc_bodies(command)`. Confirmed by the BEFORE matrix:
+      every AC1 data row is `pre_bash=BLOCKS  post_bash=FIRES`.
 
 ---
 

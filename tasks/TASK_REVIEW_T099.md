@@ -33,8 +33,41 @@
 > **before any implementation commit exists**; if it does not (docs, templates, skill-instruction
 > text), BEFORE is the **verbatim prior content** of what changed — a quoted excerpt, not a command.
 
-**BEFORE**: [pasted timestamped command output showing the thing absent/failing, captured before the
-first implementation commit] OR [verbatim excerpt of the prior content, for non-executable changes]
+**BEFORE**: captured at the commit below, before any T099 implementation commit existed. Both
+hooks driven at their real entry points (`pre_bash.main()` over a constructed board with one task
+In Progress; `post_bash` as a subprocess, as the harness runs it). Probe:
+`/tmp/.../scratchpad/probe.py`, reproduced verbatim in
+`.claude/hooks/tests/test_quoted_spans_t099.py`'s fixtures.
+
+```
+T099 hook matrix — 2026-09-02T03:31:18+00:00
+git HEAD: ced5ddd
+condition: one task In Progress on a constructed board
+
+AC           command                                         pre_bash  post_bash
+----------------------------------------------------------------------------------
+AC1 data     echo "remember to git push the branch"          BLOCKS    FIRES
+AC1 data     grep -r "git push" .claude/                     BLOCKS    FIRES
+AC1 data     python3 -c "print('git push')"                  BLOCKS    FIRES
+AC2 code     bash -c "git push origin main"                  BLOCKS    FIRES
+AC2 code     sh -c 'git merge --no-ff feature'               BLOCKS    FIRES
+AC2 code     ssh box "cd /r && git push"                     BLOCKS    FIRES
+AC3 ctrl     git push origin main                            BLOCKS    FIRES
+AC4 hdoc     cat > notes.md <<'EOF'\nThe Supervisor must...  allows    silent
+AC5 both     cat > n.md <<'EOF'\nRun bash -c "git push" ...  allows    silent
+AC7 nest     bash -c 'git push'                              BLOCKS    FIRES
+AC7 unterm   bash -c "git push                               BLOCKS    FIRES
+```
+
+Every data span in AC1 is refused, which is the live obstruction. The AC2 code spans block too —
+correctly, and that is what a naive quoted-span strip would destroy. Measured separately, with the
+same three rows the guide predicts:
+
+```
+echo "... git push ..."            today=BLOCK  naive-strip=ALLOW
+bash -c "git push origin main"     today=BLOCK  naive-strip=ALLOW
+ssh box "cd /r && git push"        today=BLOCK  naive-strip=ALLOW
+```
 
 **AFTER**: [same command, post-change] OR [verbatim excerpt of the new content]
 
