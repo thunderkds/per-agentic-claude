@@ -33,8 +33,37 @@
 > **before any implementation commit exists**; if it does not (docs, templates, skill-instruction
 > text), BEFORE is the **verbatim prior content** of what changed — a quoted excerpt, not a command.
 
-**BEFORE**: [pasted timestamped command output showing the thing absent/failing, captured before the
-first implementation commit] OR [verbatim excerpt of the prior content, for non-executable changes]
+**BEFORE** (verbatim prior content, captured 2026-09-02 before the first implementation commit):
+
+`CLAUDE.md` lines 19-25 — `## Supervisor Communication Style`, opening paragraph:
+
+```
+## Supervisor Communication Style
+
+The harness already keeps chat replies short and plain by default — no extra rule needed for that.
+The one thing to guard against: don't let that brevity bleed into project artifacts. Keep
+`PROJECT_KANBAN.md` rows, `TASK_GUIDE_Txxx.md` Evidence, `memory/decisions.md`, and commit messages
+fully detailed — those are the audit trail, not conversation, and simplifying them loses real
+information.
+```
+
+`agents/general-agent-template.md` — there is **no** `## Response Standard` section. Verbatim, the
+file's complete section list before this task:
+
+```
+$ grep -n '^## ' agents/general-agent-template.md
+9:## Base Rules (Inherited by All Sub-Agents)
+33:## Search Before You Build
+54:## Output Requirements (Every Task)
+61:## Staleness Guard
+```
+
+`tests/` — no test asserts anything about a response standard:
+
+```
+$ grep -rl "Response Standard" tests/ CLAUDE.md agents/
+(no matches)
+```
 
 **AFTER**: [same command, post-change] OR [verbatim excerpt of the new content]
 
