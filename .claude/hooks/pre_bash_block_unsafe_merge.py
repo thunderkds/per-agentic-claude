@@ -31,15 +31,16 @@ TRACE_DIR = os.path.join(ROOT, "memory", "event-trace")
 # proceeds — the precise direction AC7 exists to prevent. So the import is
 # guarded and its failure is turned into an explicit block.
 #
-# `shell_data.strip_heredoc_bodies` (T095 defect C) is imported in the same
-# guarded block for the same reason, though it fails in the opposite direction:
-# losing it would make the gate classify heredoc *bodies* as commands again
-# (over-blocking, not under-blocking). Blocking on its absence keeps one rule
-# here — an unavailable resolver is a block — rather than two.
+# `shell_data.strip_heredoc_bodies` (T095 defect C) and `strip_quoted_spans`
+# (T099) are imported in the same guarded block for the same reason, though they
+# fail in the opposite direction: losing them would make the gate classify
+# heredoc bodies and quoted arguments as commands again (over-blocking, not
+# under-blocking). Blocking on their absence keeps one rule here — an
+# unavailable resolver is a block — rather than two.
 sys.path.insert(0, os.path.join(HOOKS_DIR, "lib"))
 try:
     from guide_sections import read_guide_section  # noqa: E402
-    from shell_data import strip_heredoc_bodies  # noqa: E402
+    from shell_data import strip_heredoc_bodies, strip_quoted_spans  # noqa: E402
 except Exception as exc:  # pragma: no cover - exercised via subprocess test
     print(json.dumps({
         "decision": "block",
@@ -401,12 +402,21 @@ def main():
     if not isinstance(command, str):
         sys.exit(0)
 
-    # Classify the command, not the data it carries (T095 defect C). A heredoc
-    # body is an argument being written to a file, so a `git push` inside one is
-    # a mention; the body is replaced with a space before the push/merge/rebase
-    # patterns run. Only terminated bodies are removed, and only up to their
-    # terminator, so a real `; git push` on the same command line is still seen.
-    if not any(re.search(p, strip_heredoc_bodies(command)) for p in BLOCKED_PATTERNS):
+    # Classify the command, not the data it carries (T095 defect C, T099).
+    # Heredocs first, then quoted spans — that order is required, and
+    # `strip_quoted_spans`'s docstring says why. A heredoc body is an argument
+    # being written to a file, so a `git push` inside one is a mention. A quoted
+    # span is a mention only when nothing will execute it: `grep "git push"` is
+    # data, `bash -c "git push"` is a push, and the wrapper is what tells them
+    # apart. Both strips remove less on any uncertainty, so this composition can
+    # only ever over-block — never disarm the gate.
+    #
+    # Note this is NOT the same call as `invokes_test_runner`'s unconditional
+    # `QUOTED_SPAN_PATTERN.sub`, and must not be collapsed into it: there a false
+    # negative means "not verified" and refuses the merge; here it would mean
+    # "not a push" and wave one through.
+    scannable = strip_quoted_spans(strip_heredoc_bodies(command))
+    if not any(re.search(p, scannable) for p in BLOCKED_PATTERNS):
         sys.exit(0)
 
     try:
