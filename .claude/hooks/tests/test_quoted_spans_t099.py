@@ -579,3 +579,134 @@ def test_only_the_enumerated_data_commands_can_ever_strip_a_span():
     reaching_out = """python3 -c "import os; os.system('%s origin main')" """ % PUSH
     assert PUSH in strip_quoted_spans(reaching_out)
     assert pre_blocks(reaching_out) is True
+
+
+# --- Round 3: the POSITION invariant ------------------------------------
+#
+# The three tests above pin the *direction* — unknown resolves toward code.
+# They cannot see the third instance of the same shape, which Stage 4 found:
+# `DATA_COMMAND_PATTERN` was applied with `.search()` against the segment
+# prefix, so a data *word* appearing anywhere in that prefix counted, whether or
+# not it was the command being run. A hostname alone disarmed the gate.
+#
+# Direction says *which names* may strip a span. Position says *where* the name
+# has to be. Both are load-bearing and only one of them was pinned, so nothing
+# in the suite went red when the anchor was removed. These tests close that.
+#
+# The hostname is invented on purpose: `zorblax-gw.invalid` is not a name any
+# future allowlist could plausibly acquire, so the assertion cannot be satisfied
+# by accident. It merely *contains* a data word, which is the whole point.
+
+DATA_WORD_NOT_THE_COMMAND = [
+    # Stage 4's six measured shapes, every one of which allowed a real push
+    # before the anchor landed.
+    'ssh echo.zorblax-gw.invalid "%s origin main"' % PUSH,
+    'ssh ag.zorblax-gw.invalid "%s origin main"' % PUSH,
+    'ssh -o "LogLevel=echo" zorblax-gw.invalid "%s origin main"' % PUSH,
+    'ssh --tag=echo zorblax-gw.invalid "%s origin main"' % PUSH,
+    'ssh zorblax-gw.invalid "echo hi" "%s origin main"' % PUSH,
+    'docker exec --env=echo zorblax_c "%s origin main"' % PUSH,
+    # Round 3's own addition: the anchor's optional leading-path clause was
+    # `\S*/`, which could backtrack over the assignment clause and eat an
+    # assignment's `VAR=` as if it were a directory. Any first token merely
+    # *containing* `/echo` then read as "the command is echo".
+    'X=/bin/echo sh -c "%s origin main"' % PUSH,
+    'PAGER=/bin/echo bash -c "%s origin main"' % PUSH,
+    'A=x/echo ssh zorblax-gw.invalid "%s origin main"' % PUSH,
+]
+
+
+def test_a_data_word_that_is_not_the_command_never_strips_a_span():
+    """A data command makes its arguments data only when it is the command
+    being run. A hostname, an option value, an earlier argument or an
+    assignment's value that happens to spell `echo` must change nothing."""
+    for command in DATA_WORD_NOT_THE_COMMAND:
+        assert PUSH in strip_quoted_spans(command), command
+        assert pre_blocks(command) is True, command
+        assert post_fires(command) is True, command
+
+
+def test_a_genuine_path_to_a_data_command_is_still_data():
+    """The other side of the same invariant: anchoring must not over-reject.
+    `/usr/bin/echo` and `./echo` *are* the command, so AC1 still holds for them
+    and an operator who spells the path out is not blocked."""
+    for command in ('/usr/bin/echo "%s"' % PUSH,
+                    './echo "%s"' % PUSH,
+                    '../echo "%s"' % PUSH,
+                    '/usr/local/bin/rg "%s" .' % PUSH,
+                    'LC_ALL=C grep -r "%s" .claude/' % PUSH):
+        assert PUSH not in strip_quoted_spans(command), command
+        assert pre_blocks(command) is False, command
+
+
+class _UnanchoredShim(object):
+    """`DATA_COMMAND_PATTERN` as it behaved before the anchor: `.match` is
+    wired to `.search`, which is exactly the one-character revert at the call
+    site that nothing in the suite could previously detect."""
+
+    def __init__(self, pattern):
+        self._pattern = pattern
+
+    def match(self, text):
+        return self._pattern.search(text)
+
+
+def test_the_position_invariant_goes_red_when_the_anchor_is_reverted():
+    """Anti-vacuity for the two tests above (AC8's shape, one level down).
+
+    Restores the pre-anchor pattern *and* the pre-anchor `.search` semantics,
+    and asserts that real pushes start leaking again. If this test can no longer
+    make them leak, the anchor above has stopped being load-bearing and the two
+    tests before it have become decoration."""
+    import shell_data
+
+    unanchored = re.compile(
+        r"(?:^|[^\w./-])(?:"
+        r"echo\b|printf\b|[ef]?grep\b|rg\b|ag\b"
+        r"|python[0-9.]*\s+-[A-Za-z]*c\b"
+        r")"
+    )
+    original = shell_data.DATA_COMMAND_PATTERN
+    shell_data.DATA_COMMAND_PATTERN = _UnanchoredShim(unanchored)
+    try:
+        leaked = [c for c in DATA_WORD_NOT_THE_COMMAND
+                  if PUSH not in shell_data.strip_quoted_spans(c)]
+    finally:
+        shell_data.DATA_COMMAND_PATTERN = original
+
+    # Every one of Stage 4's six shapes leaked before the anchor; the round-3
+    # assignment shapes leak under the unrestricted `\S*/` clause, which the
+    # next test covers. Assert on the six so this fails loudly on a revert.
+    assert len(leaked) >= 6, leaked
+    # And the anchored pattern lets none of them through.
+    assert all(PUSH in strip_quoted_spans(c) for c in DATA_WORD_NOT_THE_COMMAND)
+
+
+def test_the_leading_path_clause_cannot_swallow_an_assignment():
+    """Anti-vacuity for round 3's own narrowing: with the clause back at
+    `\\S*/`, `X=/bin/echo sh -c "<push>"` is read as an `echo` and the span is
+    stripped off a real `sh -c`."""
+    import shell_data
+
+    permissive = re.compile(
+        r"\s*(?:[A-Za-z_]\w*=\S*\s+)*"
+        r"(?:\S*/)?"
+        r"(?:"
+        r"echo\b|printf\b|[ef]?grep\b|rg\b|ag\b"
+        r"|python[0-9.]*\s+-[A-Za-z]*c\b"
+        r")"
+    )
+    assignment_shapes = ['X=/bin/echo sh -c "%s origin main"' % PUSH,
+                         'PAGER=/bin/echo bash -c "%s origin main"' % PUSH,
+                         'A=x/echo ssh zorblax-gw.invalid "%s origin main"' % PUSH]
+
+    original = shell_data.DATA_COMMAND_PATTERN
+    shell_data.DATA_COMMAND_PATTERN = permissive
+    try:
+        leaked = [c for c in assignment_shapes
+                  if PUSH not in shell_data.strip_quoted_spans(c)]
+    finally:
+        shell_data.DATA_COMMAND_PATTERN = original
+
+    assert leaked == assignment_shapes, leaked
+    assert all(PUSH in strip_quoted_spans(c) for c in assignment_shapes)

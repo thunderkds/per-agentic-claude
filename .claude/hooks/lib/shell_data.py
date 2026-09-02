@@ -181,9 +181,16 @@ def strip_heredoc_bodies(command):
 # only leading whitespace and `VAR=value` assignments may precede it. A data
 # command behind `sudo`/`time`/`xargs` is therefore kept, which over-blocks: the
 # recoverable side, per this module's direction rule.
+#
+# The leading-path clause is restricted to path characters rather than `\S*`,
+# and that restriction is load-bearing too (round 3). `\S*/` could backtrack
+# *over* the assignment clause and eat an assignment's own `VAR=` as if it were
+# a directory, so `X=/bin/echo sh -c "<push>"` read as "the command is echo" and
+# stripped the span off a real `sh -c`. Any first token merely *containing*
+# `/echo` was enough. Excluding `=` and the quote characters keeps a path a path.
 DATA_COMMAND_PATTERN = re.compile(
     r"\s*(?:[A-Za-z_]\w*=\S*\s+)*"
-    r"(?:\S*/)?"
+    r"(?:[\w.\-/]*/)?"
     r"(?:"
     r"echo\b"
     r"|printf\b"
