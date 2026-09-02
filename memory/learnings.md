@@ -1802,8 +1802,9 @@ only up to the terminator, replaced with a space rather than deleted. `.claude/h
 is the shared implementation; `QUOTED_SPAN_PATTERN` in `pre_bash_block_unsafe_merge.py` is the same
 idea for quoted spans.
 
-**Still open**: `post_bash_memory_update.py` handles heredocs but not quoted spans, so
-`python3 -c '... git push ...'` still trips it.
+**Closed by T099 (2026-09-02)**: `post_bash_memory_update.py` now composes both strips, and the
+quoted-span half was rebuilt — see the T099 entry below. The `QUOTED_SPAN_PATTERN` pointer above is
+**only correct for the evidence matcher**: reusing it in a push matcher is the trap T099 documents.
 
 **Direction rule that generalises**: uncertainty in a data-stripping fix must resolve toward
 stripping *less*. Being wrong that way over-blocks, which an operator notices and recovers from;
@@ -1853,3 +1854,33 @@ review had not flagged at all:
 Generalisable: **when a set is resolved in one place and consumed in another, report from the
 consumer, not the resolver.** And an empty resolved set is a state worth naming — silence reads as
 success. Neither finding is visible from a diff; both took ~2 minutes at the CLI.
+
+## The same fail-open recurred three times in one task, each a level deeper (2026-09-02, T099)
+
+T099 shipped three fail-opens in sequence, and the shape is worth more than any of the fixes:
+
+1. **Wrong set.** `WRAPPER_PATTERN` enumerated the wrappers to *keep* spans for, so an unlisted
+   wrapper stripped the span. `eval`, `su -c`, `perl -e "system(…)"` each went BLOCK -> allow.
+2. **Right set, wrong place.** After inverting to a data-command allowlist, the check used
+   `.search()` against the segment prefix, so a data *word* anywhere in it counted:
+   `ssh echo.example.com "<push>"` allowed a real push **on a hostname alone**.
+3. **Right place, leaky regex.** The anchoring fix's `(?:\S*/)?` clause backtracked over its own
+   assignment guard, so `X=/bin/echo sh -c "<push>"` allowed a real push.
+
+**Every one survived because a comment asserted a safety property no test enforced.** In each case
+the module docstring stated the direction confidently — round 1's said "a wrapper missing from this
+list over-blocks — the recoverable direction" while the code under it under-blocked. A confident
+comment about a safety invariant is the strongest signal to go **measure** it, not to trust it.
+
+**What finally worked**: pinning the invariants themselves rather than the enumerated shapes — one
+test for direction (*which* names may strip), one for position (*where* the name must be), each
+built so reverting the fix turns it red. Before those, both reverts left 786 tests fully green.
+An anti-vacuity probe only covers the failure it imagines: round 1's probes substituted the *naive
+strip* and could never have seen an incomplete allowlist.
+
+**Process note, recorded because it caused defect 3**: the Supervisor wrote the round-2 fix directly
+(Hard-Stop Gate 1 violation) under the `code-review` skill's "apply safe P1 fixes" step, and shipped
+a live fail-open with no test. The two rules genuinely conflict; the Supervisor followed the skill
+without surfacing the conflict first. It was caught only because the implementing agent was then
+asked to review the Supervisor's own commit and was told explicitly that being asked to review it
+was not a hint to approve it.

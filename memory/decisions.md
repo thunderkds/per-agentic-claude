@@ -1853,9 +1853,10 @@ on the integration branch first. T095 was the last task to pay that tax.
    trade, but it is a genuine widening versus pre-T095, not merely "another place to look".
 2. The **quoted-span form of defect C is still live** in `post_bash_memory_update.py` — it fired
    twice during T095's own Stage 5 run on `python3 -c` probes carrying `git push` inside a quoted
-   argument. T095 fixed heredoc bodies only.
+   argument. T095 fixed heredoc bodies only. **Resolved by T099 (2026-09-02)** — and the fix was
+   nothing like the one this entry anticipated; see the T099 entry.
 3. `lib/shell_data.py:39` docstring still says the memory hook is "untouched here (out of scope)",
-   stale as of `00c54c6` on the same branch. Stage 4 P2, left unapplied.
+   stale as of `00c54c6` on the same branch. Stage 4 P2, left unapplied. **Fixed in T099.**
 
 ## T098 merged: `claude` is presence-detected like every other harness (2026-09-01)
 
@@ -1886,3 +1887,37 @@ bare `Update complete`.
 
 `setup.sh` and `update.sh` also now abort with a named message when `harness_project_manifest`
 fails, instead of continuing over a partial tree (the second, smaller item T097's verify raised).
+
+## T099 merged: a quoted span is classified by what will run it, not by what it contains (2026-09-02)
+
+**Decision**: `strip_quoted_spans` in `.claude/hooks/lib/shell_data.py`, composed **after**
+`strip_heredoc_bodies` at both hooks' push/merge matchers. The default is **keep** — a span is
+command text unless a command known to only print or match (`DATA_COMMAND_PATTERN`: echo, printf,
+the grep family, rg, ag, `python -c`) is the segment's **own command**, and the span's own text
+carries no executor (`SPAN_EXECUTOR_PATTERN`).
+
+**The rejected design is the load-bearing part.** T099's registration assumed the fix was to reuse
+`QUOTED_SPAN_PATTERN`, which `pre_bash_block_unsafe_merge.py` already applies one level down in
+`invokes_test_runner`. That is wrong and fails **open**: a heredoc body is definitionally data
+(it has a syntactic destination), but a quoted span has none — `echo "X"` prints it and
+`bash -c "X"` runs it, and nothing *inside* the span distinguishes them. `invokes_test_runner`
+gets away with the unconditional strip only because its false negative means "not verified" and
+refuses the merge; in a push matcher the same false negative means "not a push" and waves one
+through. **Same pattern, opposite consequence.**
+
+**Why keep-by-default rather than a wrapper allowlist**: the set of things that *execute* is
+unbounded (eval, su -c, perl, node, ruby, nohup, flock, and whatever is next), so any allowlist of
+it fails open by construction. The set of things that only *print or match* is small and closed.
+This is the generalisable rule, not the specific regexes.
+
+**Files**: .claude/hooks/lib/shell_data.py, pre_bash_block_unsafe_merge.py,
+post_bash_memory_update.py, tests/test_quoted_spans_t099.py (38 assertions). 790 hook tests.
+
+**Accepted limitations, recorded rather than closed**:
+1. `python3 -c "import os as o; f=o.system; f('<push>')"` is allowed — aliasing evades
+   `SPAN_EXECUTOR_PATTERN`'s literal spellings. Closing it needs an AC1 change or a Python parser.
+   Do **not** fix it by adding more spellings; that is the allowlist mistake above.
+2. `git pull` is absent from `BLOCKED_PATTERNS` while `post_bash_memory_update.py` treats it as
+   memory-relevant. The two hooks disagree about whether a pull is a merge. Pre-existing, unowned.
+3. Over-blocking by design: `sudo echo`, `time grep`, `~/bin/echo`, `$HOME/bin/echo` all keep their
+   spans, and the gate's message explains pipeline state rather than span classification.
