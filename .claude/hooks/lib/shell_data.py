@@ -172,8 +172,19 @@ def strip_heredoc_bodies(command):
 # one entry that does execute its span, and it is here because AC1 requires it;
 # it can only execute *Python*, never shell, and a span that reaches back out to
 # the shell is caught by ``SPAN_EXECUTOR_PATTERN`` below.
+# Anchored at the segment's start, and that anchoring is load-bearing (Stage 4).
+# An unanchored search matched a data word appearing anywhere in the prefix, so
+# `ssh echo.example.com "<push>"`, `ssh -o "LogLevel=echo" box "<push>"` and any
+# host whose name merely contains `echo`/`ag`/`rg` stripped the span and waved a
+# real push through — the same fail-open shape as round 1, one level down. A data
+# command only makes its arguments data when it is the command *being run*, so
+# only leading whitespace and `VAR=value` assignments may precede it. A data
+# command behind `sudo`/`time`/`xargs` is therefore kept, which over-blocks: the
+# recoverable side, per this module's direction rule.
 DATA_COMMAND_PATTERN = re.compile(
-    r"(?:^|[^\w./-])(?:"
+    r"\s*(?:[A-Za-z_]\w*=\S*\s+)*"
+    r"(?:\S*/)?"
+    r"(?:"
     r"echo\b"
     r"|printf\b"
     r"|[ef]?grep\b"
@@ -262,7 +273,7 @@ def strip_quoted_spans(command):
             if close == -1:
                 break  # unterminated - strip nothing further
             span = command[i:close + 1]
-            if (DATA_COMMAND_PATTERN.search(command[segment_start:i])
+            if (DATA_COMMAND_PATTERN.match(command[segment_start:i])
                     and not SPAN_EXECUTOR_PATTERN.search(span)):
                 pieces.append(command[emitted:i])
                 pieces.append(" ")
