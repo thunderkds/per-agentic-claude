@@ -66,7 +66,7 @@ quoted span has no destination of its own. It is an argument, and whether the
 shell executes it is decided entirely by the command it is an argument to:
 ``echo "git push"`` prints those bytes, ``bash -c "git push"`` runs them.
 Nothing *inside* the span tells the two apart, so a quoted span can only be
-classified by looking **left**, at its wrapper.
+classified by looking **left**, at the command it belongs to.
 
 ``invokes_test_runner`` gets away with the unconditional strip because its
 failure direction is the opposite one: it proves a runner *was* invoked, so a
@@ -77,9 +77,24 @@ second function here rather than a second call site for the first one.
 
 The direction rule from the heredoc half is inherited unchanged: every
 uncertainty resolves toward treating a span as **code** (strip less, block
-more). An unknown wrapper, a nested wrapper, an unterminated quote — each keeps
-the span. Over-blocking is recoverable and an operator sees it happen; a
+more). An unrecognised command, a nested executor, an unterminated quote — each
+keeps the span. Over-blocking is recoverable and an operator sees it happen; a
 silently disarmed gate is neither.
+
+**That rule is enforced by which list is enumerated, and T099's first round
+enumerated the wrong one.** It listed the *wrappers* — an allowlist of spans to
+KEEP — so a wrapper nobody had thought of fell through to the strip and its push
+became invisible to the gate. The module said the opposite ("a wrapper missing
+from this list over-blocks — the recoverable direction"); the code under it
+under-blocked, and Stage 5 measured `eval "git push"`, `su user -c "git push"`
+and `perl -e "system('git push')"` all flipping BLOCK -> allow. The documented
+invariant contradicting the code is how the gap survived review, so it is
+recorded here rather than quietly corrected.
+
+The enumeration is therefore inverted: ``DATA_COMMAND_PATTERN`` lists the
+commands after which a span is *data*, and everything not on it is code. An
+addition to that list is the only way to widen what the gate ignores, which
+makes the fail-open direction reviewable in one place instead of unbounded.
 """
 import re
 
@@ -142,61 +157,93 @@ def strip_heredoc_bodies(command):
     return "".join(pieces)
 
 
-# --- Quoted spans: data, unless a wrapper will execute them (T099) ----------
+# --- Quoted spans: code, unless a known data command precedes them (T099) ---
 
-# Prefixes after which a quoted span is *command text*, not data. Deliberately
-# short and deliberately incomplete (Simplicity First): the default is "do not
-# strip", so a wrapper missing from this list over-blocks — the recoverable
-# direction — while a wrapper wrongly *added* would be the disarming one.
+# Commands after which a quoted argument is **data** — the only way a span gets
+# stripped. This is an allowlist of exceptions to a keep-everything default, and
+# that direction is the whole point: a command missing from this list keeps its
+# spans, so the gate over-blocks, which an operator sees and can work around. A
+# command wrongly *added* here silently disarms the gate for every span that
+# follows it, which nobody sees. Add to this list only with that asymmetry in
+# mind.
 #
-# `\w*sh\s+-[A-Za-z]*c` covers `sh -c`, `bash -c`, `zsh -c` and the `-lc`
-# /`-ec` cluster forms in one clause rather than enumerating shells. `env` and
-# other leading assignments need no clause of their own: `env FOO=1 sh -c "…"`
-# still contains `sh -c` before its span.
-WRAPPER_PATTERN = re.compile(
+# Deliberately short. `echo`/`printf` cannot execute their arguments at all, and
+# the `grep` family plus `rg`/`ag` only match against them. `python -c` is the
+# one entry that does execute its span, and it is here because AC1 requires it;
+# it can only execute *Python*, never shell, and a span that reaches back out to
+# the shell is caught by ``SPAN_EXECUTOR_PATTERN`` below.
+DATA_COMMAND_PATTERN = re.compile(
     r"(?:^|[^\w./-])(?:"
-    r"\w*sh\s+-[A-Za-z]*c\b"
-    r"|ssh\b"
-    r"|docker\s+(?:exec|run)\b"
+    r"echo\b"
+    r"|printf\b"
+    r"|[ef]?grep\b"
+    r"|rg\b"
+    r"|ag\b"
+    r"|python[0-9.]*\s+-[A-Za-z]*c\b"
     r")"
 )
 
-# Where a shell starts a new command, so a wrapper seen earlier stops applying.
-# `$(` and a backtick open a fresh command context for the same reason.
+# Text that, appearing **inside** a span, drags it back to code even when a data
+# command precedes it: `echo "bash -c '…'"` is genuinely data, but telling that
+# apart from a real nested invocation needs the shell parser this module exists
+# to avoid, so the uncertainty resolves the safe way. The `system(`/`popen(`/
+# `subprocess` clause is what keeps `python -c` in the list above honest.
+SPAN_EXECUTOR_PATTERN = re.compile(
+    r"(?:^|[^\w./-])(?:"
+    r"\w*sh\s+-[A-Za-z]*c\b"
+    r"|ssh\b"
+    r"|eval\b"
+    r"|docker\s+(?:exec|run)\b"
+    r")"
+    # No left-boundary guard on these: they are usually reached through an
+    # attribute (`os.system(`, `subprocess.run(`), so requiring a non-word
+    # character before them would miss exactly the spelling that appears.
+    r"|(?:system|popen|spawn\w*|exec\w*)\s*\("
+    r"|subprocess\b"
+)
+
+# Where a shell starts a new command, so a data command seen earlier stops
+# applying. `$(` and a backtick open a fresh command context for the same reason.
 SEGMENT_BOUNDARY_PATTERN = re.compile(r"[;&|\n]|\$\(|`")
 
 
 def strip_quoted_spans(command):
     """Replace every quoted span that is **data** with a single space.
 
-    A span is kept — treated as command text — when either:
+    The default is **keep**. A span is treated as command text unless a command
+    known to do nothing but print or match its arguments — see
+    ``DATA_COMMAND_PATTERN`` — appears earlier in the same command segment. So:
 
-    * a shell-invoking wrapper appears earlier in the same command segment, so
-      the span is the thing that wrapper will run (``bash -c "git push"``,
-      ``ssh box "cd /r && git push"``); or
-    * a wrapper appears *inside* the span itself. ``echo "bash -c 'git push'"``
-      is genuinely data, and keeping it only over-blocks — but distinguishing it
-      from a real nested invocation needs the shell parser this module exists to
-      avoid, so the nested case resolves toward code like every other
-      uncertainty here.
+    * ``grep -r "git push" .claude/`` and ``echo "… git push …"`` are data and
+      the span is removed;
+    * ``bash -c "git push"``, ``ssh box "cd /r && git push"``, and equally
+      ``eval "git push"``, ``su user -c "git push"``, ``perl -e "system(…)"`` or
+      any wrapper nobody has thought of yet keep their span and still block.
 
-    A wrapper's *other* arguments are kept too, by construction: in
-    ``ssh -o "StrictHostKeyChecking=no" box "git push"`` both spans follow
-    ``ssh`` in the same segment, so both survive. That is over-keeping, and over-
-    keeping is the safe side.
+    That direction is the correction T099's second round exists to make. The
+    first round enumerated the *wrappers* instead — an allowlist of spans to
+    keep — which meant an unrecognised wrapper had its span stripped and its
+    push waved through. Unknown must resolve toward **code**, because
+    over-blocking is recoverable and an operator sees it happen, while a
+    silently disarmed gate is neither. ``test_quoted_spans_t099.py`` pins that
+    direction itself, not just the enumerated shapes.
+
+    A span whose own text carries an executor (``SPAN_EXECUTOR_PATTERN``) is
+    kept even behind a data command — over-blocking, the safe side.
 
     An **unterminated** quote ends the scan: the rest of the command is left
-    exactly as it arrived. A shell would treat it as an open string, but guessing
-    that hides whatever follows, and this module never strips on a guess.
+    exactly as it arrived. A shell would treat it as an open string, but
+    guessing that hides whatever follows, and this module never strips on a
+    guess.
 
     **Compose it after** ``strip_heredoc_bodies``, never before. A heredoc body
-    is data regardless of what it contains, so a body carrying ``bash -c "git
-    push"`` must already be gone — otherwise the wrapper *inside* that body
-    keeps a span that is being written to a file. The reverse order also lets a
+    is data regardless of what it contains, so a body carrying
+    ``bash -c "git push"`` must already be gone. The reverse order also lets a
     quoted span swallow a heredoc's own header. Both hooks call
     ``strip_quoted_spans(strip_heredoc_bodies(command))``; a single combined
-    helper was considered and rejected, because each hook's stripping has to stay
-    separately substitutable for the anti-vacuity tests that revert one at a time.
+    helper was considered and rejected, because each hook's stripping has to
+    stay separately substitutable for the anti-vacuity tests that revert one at
+    a time.
 
     Returns `command` unchanged for non-strings and for anything with no quote
     character in it. Never raises: callers run before every Bash call in the repo.
@@ -213,10 +260,10 @@ def strip_quoted_spans(command):
         if char in "\"'":
             close = command.find(char, i + 1)
             if close == -1:
-                break  # unterminated — strip nothing further
+                break  # unterminated - strip nothing further
             span = command[i:close + 1]
-            if not (WRAPPER_PATTERN.search(command[segment_start:i])
-                    or WRAPPER_PATTERN.search(span)):
+            if (DATA_COMMAND_PATTERN.search(command[segment_start:i])
+                    and not SPAN_EXECUTOR_PATTERN.search(span)):
                 pieces.append(command[emitted:i])
                 pieces.append(" ")
                 emitted = close + 1
@@ -233,4 +280,3 @@ def strip_quoted_spans(command):
         return command
     pieces.append(command[emitted:])
     return "".join(pieces)
-

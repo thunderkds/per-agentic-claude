@@ -286,15 +286,31 @@ def test_a_heredoc_body_containing_a_wrapped_push_is_still_data():
     assert post_fires(HEREDOC_CARRYING_A_WRAPPED_PUSH) is False
 
 
+# A heredoc whose *header line* also carries a data command. Written this way on
+# purpose: it is the shape that makes the composition order observable, because
+# the quoted-span strip run first would take `'EOF'` along with `"writing notes"`
+# and leave `<<` with no tag for the heredoc strip to recognise.
+HEREDOC_BEHIND_A_DATA_COMMAND = (
+    'echo "writing notes" > n.md <<\'EOF\'\n'
+    "Then run %s origin main.\n"
+    "EOF\n" % PUSH
+)
+
+
 def test_the_composition_order_is_the_one_that_produces_that():
     """The same assertion one level down, on the functions themselves, so a
     reversal of the order is caught even if a hook stops calling them."""
     assert not re.search(r"\b%s\b" % PUSH,
                          strip_quoted_spans(strip_heredoc_bodies(HEREDOC_CARRYING_A_WRAPPED_PUSH)))
-    # Reversed, the quoted span inside the body survives, because the span
-    # carries its own wrapper and nothing has removed the body yet.
+    # Heredocs first: the body is data whatever it says, and the header survives
+    # to be recognised.
+    assert not re.search(r"\b%s\b" % PUSH,
+                         strip_quoted_spans(strip_heredoc_bodies(HEREDOC_BEHIND_A_DATA_COMMAND)))
+    # Reversed, the quoted-span strip eats the heredoc's own `'EOF'` tag, the
+    # header stops parsing, and the body is scanned as command text.
     assert re.search(r"\b%s\b" % PUSH,
-                     strip_heredoc_bodies(strip_quoted_spans(HEREDOC_CARRYING_A_WRAPPED_PUSH)))
+                     strip_heredoc_bodies(strip_quoted_spans(HEREDOC_BEHIND_A_DATA_COMMAND)))
+    assert pre_blocks(HEREDOC_BEHIND_A_DATA_COMMAND) is False
 
 
 def test_a_real_wrapped_push_after_the_heredoc_terminator_still_blocks():
@@ -435,8 +451,8 @@ def test_the_two_hooks_still_guard_in_opposite_directions():
 def test_a_stripped_span_is_replaced_with_a_space_not_deleted():
     """T095's rule, inherited: deleting can glue two words into a token that was
     never in the command."""
-    assert "ab" not in strip_quoted_spans('a"x"b')
-    assert strip_quoted_spans('a"x"b') == "a b"
+    assert "ab" not in strip_quoted_spans('echo a"x"b')
+    assert strip_quoted_spans('echo a"x"b') == "echo a b"
 
 
 def test_non_strings_and_quote_free_input_pass_through_unchanged():
@@ -501,3 +517,65 @@ def test_the_naive_strip_would_also_disarm_the_memory_hook():
     for command in ('bash -c "%s origin main"' % PUSH, 'ssh box "cd /r && %s"' % PUSH):
         assert re.search(r"\b%s\b" % PUSH, strip_quoted_spans(command)), command
         assert not re.search(r"\b%s\b" % PUSH, naive.sub(" ", command)), command
+
+
+# ---------------------------------------------------------------------------
+# The DIRECTION itself, not the enumerated shapes. T099's first round passed
+# every test above while `eval "<push>"`, `su user -c "<push>"` and
+# `perl -e "system('<push>')"` all went from BLOCK to allow, because it
+# enumerated the wrappers to KEEP and let anything unlisted fall through to the
+# strip. Enumerating shapes can only ever catch the shapes someone thought of;
+# these three tests assert the default, so an unrecognised command is covered
+# whether or not anybody names it.
+# ---------------------------------------------------------------------------
+
+UNRECOGNISED_WRAPPERS = [
+    'eval "%s origin main"' % PUSH,
+    'su user -c "%s origin main"' % PUSH,
+    """perl -e "system('%s')" """ % PUSH,
+    'ruby -e "%s origin main"' % PUSH,
+    'node -e "%s origin main"' % PUSH,
+    'nohup bash "%s origin main"' % PUSH,
+    'flock /tmp/l "%s origin main"' % PUSH,
+    'setsid "%s origin main"' % PUSH,
+    'watch "%s origin main"' % PUSH,
+    'script -c "%s origin main" /dev/null' % PUSH,
+    'chroot /r "%s origin main"' % PUSH,
+    'stdbuf -o0 "%s origin main"' % PUSH,
+]
+
+
+def test_an_unrecognised_wrapper_resolves_toward_code():
+    """None of these is enumerated anywhere in `shell_data`. Every one must
+    still block, because *not being enumerated* is what decides it."""
+    for command in UNRECOGNISED_WRAPPERS:
+        assert PUSH in strip_quoted_spans(command), command
+        assert pre_blocks(command) is True, command
+        assert post_fires(command) is True, command
+
+
+def test_a_command_nobody_has_ever_heard_of_still_keeps_its_span():
+    """The direction stated at its most general: an invented command name cannot
+    be on any list, so its span must survive. This is the assertion whose absence
+    let the first round ship — it fails the moment the default flips to strip."""
+    for name in ("frobnicate", "zzq-runner", "xyzzy --exec", "\u00e9t\u00e9-run", "a" * 40):
+        command = '%s "%s origin main"' % (name, PUSH)
+        assert PUSH in strip_quoted_spans(command), command
+        assert pre_blocks(command) is True, command
+
+
+def test_only_the_enumerated_data_commands_can_ever_strip_a_span():
+    """The inverse, stated structurally: a span is stripped **only** behind a
+    name in `DATA_COMMAND_PATTERN`. Asserted against the pattern itself so a
+    future edit that widens the list has to change this test deliberately."""
+    import shell_data
+
+    for name in ("echo", "printf", "grep", "egrep", "fgrep", "rg", "ag",
+                 "python3 -c", "python -c"):
+        assert PUSH not in strip_quoted_spans('%s "%s"' % (name, PUSH)), name
+        assert shell_data.DATA_COMMAND_PATTERN.search(name), name
+    # And the executor override keeps `python -c` honest: a span that reaches
+    # back out to the shell is code again even behind a listed data command.
+    reaching_out = """python3 -c "import os; os.system('%s origin main')" """ % PUSH
+    assert PUSH in strip_quoted_spans(reaching_out)
+    assert pre_blocks(reaching_out) is True

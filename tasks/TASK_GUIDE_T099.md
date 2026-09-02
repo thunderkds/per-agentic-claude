@@ -238,12 +238,15 @@ naive strip.
       commit (`b098188` predates `af737d9`)
 - [x] BEFORE captured before the first implementation commit — real output at `ced5ddd`, committed
       in `b098188`
-- [x] AC1–AC8 covered by passing automated assertions — 31 in
+- [x] AC1–AC8 covered by passing automated assertions — 34 in
       `.claude/hooks/tests/test_quoted_spans_t099.py`, including AC8's two mandatory anti-vacuity
-      probes
-- [x] Verification Command run, output pasted into Evidence — 752 → 783 hook tests; the 6 failures
+      probes and (round 2) three that pin the classification *direction* rather than the enumerated
+      shapes
+- [x] Verification Command run, output pasted into Evidence — 752 → 786 hook tests; the 6 failures
       are pre-existing and measured as such at `ced5ddd`
 - [x] AFTER + DELTA + WITNESS filled
 - [x] UI Evidence rows ☑ N/A (pure-infrastructure task, no UI surface)
-- [ ] Stage 5 `verify` — **outstanding**, user-invoked only; the `verify` Evidence row is
+- [ ] Stage 5 `verify` — **failed round 1** (`eval` / `su … -c` / `perl -e` wrappers fell through
+      the keep-allowlist and were allowed); fix inverted to a data-command allowlist in round 2,
+      re-run **outstanding**, user-invoked only; the `verify` Evidence row is
       deliberately left unfilled until then
