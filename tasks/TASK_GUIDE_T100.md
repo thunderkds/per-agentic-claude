@@ -204,9 +204,9 @@ decide rather than have you silently skip a Hard-Stop Gate.
 
 ## Completion Checklist
 
-- [ ] Requirement Fidelity Gate signed off
-- [ ] BEFORE captured (verbatim prior text) before the first commit
-- [ ] AC1–AC7 satisfied, with before/after line counts stated for AC6
-- [ ] Verification Command run, output pasted into Evidence, 6 known failures and no others
-- [ ] AFTER + DELTA + WITNESS filled
-- [ ] UI Evidence rows ☐ N/A (instruction text only, no UI surface)
+- [x] Requirement Fidelity Gate signed off
+- [x] BEFORE captured (verbatim prior text) before the first commit
+- [x] AC1–AC7 satisfied, with before/after line counts stated for AC6
+- [x] Verification Command run, output pasted into Evidence, 6 known failures and no others
+- [x] AFTER + DELTA + WITNESS filled
+- [x] UI Evidence rows ☐ N/A (instruction text only, no UI surface)

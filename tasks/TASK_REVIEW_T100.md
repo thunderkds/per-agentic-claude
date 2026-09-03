@@ -33,6 +33,26 @@
 | `agents/backend.md` / `frontend.md` / `qa.md` / `common-infrastructure.md` | 142 / 138 / 127 / 135 | unchanged | 0 |
 | **Total (`CLAUDE.md` + `agents/*.md`)** | **804** | **819** | **+15** (budget ≤ 40) |
 
+### Supervisor adjudication — the flagged `.claude/hooks/` edit (2026-09-03)
+
+**Accepted.** The guide's Files-Must-NOT-Touch bans `.claude/hooks/` to keep this guidance-only task
+from adding machinery. The change under that path is `.claude/hooks/tests/test_agent_guide_dedup.py`
+only, and the diff is two baseline-ref string constants plus explanatory comments — no hook logic,
+no new machinery, nothing the ban was written to prevent. `T070_BASELINE_REF` is red *by
+construction* once AC1 edits `CLAUDE.md`, so AC1 is unsatisfiable without repointing it; both
+repoints follow the T071/T082/T096 precedent documented in that file, keep the assertion bodies
+untouched, and pin only the one role guide that breached (`c-infra`), leaving the other three on
+T066's floor with their headroom intact — exactly the "pin the one, leave the three" warning the
+file itself carries. Recorded here rather than waived silently.
+
+### Supervisor check — AC7 not triggered (2026-09-03)
+
+`agents/general-agent-template.md`'s Staleness Guard scopes the `AGENTS.md` /
+`.cursor/rules/agent-base.mdc` mirror to `CLAUDE.md`'s non-negotiables (Karpathy names, Hard-Stop
+Gate titles, untrusted content, "no TASK_GUIDE = no work") and explicitly **not** to this file's
+Base Rules. `## Response Standard` is a Base-Rules-tier section of the template, so no mirror is
+due. Confirmed live: `python3 -m pytest tests/test_provider_adapters.py -q` -> `11 passed`.
+
 ---
 
 ## Demonstration
