@@ -85,7 +85,14 @@ T069_BASELINE_REF = "8d6d56b"
 # `.claude/skills/` paths to the relocated canon and adds one line naming the symlinks, so
 # `ebb2958` is now the file's own unfixed state. `8f8cc47` is T096's CLAUDE.md edit commit. The
 # cross-context redundancy this pin protects is untouched — only path strings moved.
-T070_BASELINE_REF = "8f8cc47"
+#
+# REPOINTED AGAIN by T100 (`8f8cc47` -> `c87097e`): T100's AC1 replaces the false claim "the harness
+# already keeps chat replies short and plain by default" with text matching observed behaviour and
+# points at the shared `## Response Standard`, so `8f8cc47` is now the file's own unfixed state and
+# comparing against it is red by construction. `c87097e` is T100's CLAUDE.md edit commit. Repointed,
+# NOT deleted, and the assertion body is untouched: the replacement is line-for-line (CLAUDE.md
+# stays at 200 lines, 13 sections), so nothing was collapsed into the agent guides.
+T070_BASELINE_REF = "c87097e"
 
 # T082's own edit commit (same commit as the repoint above). T082 adds a mandatory Base Rule bullet
 # to `general-agent-template.md` too (the same untrusted-content pointer) — a legitimate, required
@@ -375,7 +382,22 @@ def loaded_chars(role: str) -> int:
 #
 # So: keep T066's floor and strict `<` where they still hold, and pin only the role that genuinely
 # breaches. A blanket repoint would have made the next role to breach invisible.
-AC7_ROLE_BASELINE = {"c-infra": T082_BASELINE_REF}  # key must match ROLE_GUIDES above
+#
+# REPOINTED by T100 for `c-infra` only, on exactly T082's reasoning and with its warning intact.
+# T100 adds the shared `## Response Standard` (617 chars) to the TEMPLATE, so every pair moves by
+# the same amount; measured against each role's current floor with T100 in place:
+#
+#     backend               13,145 vs 13,928 (T066)   -783   still strictly lower
+#     frontend              12,794 vs 13,581 (T066)   -787   still strictly lower
+#     qa                    11,960 vs 12,748 (T066)   -788   still strictly lower
+#     common-infrastructure 10,944 vs 10,327 (T082)   +617   breaches
+#
+# Same shape as T082: the smallest role guide is the only one tipped over, so pin the one and leave
+# the three on T066's floor with their remaining ~780 chars of live headroom. A blanket repoint
+# would still hide the next role to breach. `c87097e` is T100's template edit commit.
+T100_BASELINE_REF = "c87097e"
+
+AC7_ROLE_BASELINE = {"c-infra": T100_BASELINE_REF}  # key must match ROLE_GUIDES above
 
 
 def baseline_loaded_chars(role: str) -> int:

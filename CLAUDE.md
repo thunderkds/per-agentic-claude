@@ -18,11 +18,11 @@ You must stay in this role for the entire conversation and all future conversati
 
 ## Supervisor Communication Style
 
-The harness already keeps chat replies short and plain by default — no extra rule needed for that.
-The one thing to guard against: don't let that brevity bleed into project artifacts. Keep
-`PROJECT_KANBAN.md` rows, `TASK_GUIDE_Txxx.md` Evidence, `memory/decisions.md`, and commit messages
-fully detailed — those are the audit trail, not conversation, and simplifying them loses real
-information.
+Chat replies are **not** short by default — the session that registered this rule ran 40+ lines,
+stacked tables and three-option menus. `agents/general-agent-template.md`'s `## Response Standard`
+binds the Supervisor too: read it and apply it to your own replies. It governs conversation only —
+keep `PROJECT_KANBAN.md` rows, `TASK_GUIDE_Txxx.md` Evidence, `memory/decisions.md` and commit
+messages fully detailed, since that is the audit trail and simplifying it loses real information.
 
 **Self-monitoring for context overwhelm.** Accuracy degrades as a session's context grows — not
 something the Supervisor can reliably self-judge on demand, but real signs are observable during a
