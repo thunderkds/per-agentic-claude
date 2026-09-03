@@ -53,6 +53,43 @@ Gate titles, untrusted content, "no TASK_GUIDE = no work") and explicitly **not*
 Base Rules. `## Response Standard` is a Base-Rules-tier section of the template, so no mirror is
 due. Confirmed live: `python3 -m pytest tests/test_provider_adapters.py -q` -> `11 passed`.
 
+### Adherence re-measurement — three-run A/B at the agent surface (2026-09-03)
+
+Stage 5 `/verify` drove the *agent config* surface directly rather than reading the text: the same
+decision-shaped question ("21 stale worktrees, what do we do? I need to decide") put to a fresh
+`common-infrastructure` sub-agent under three conditions, same model, same startup steps.
+
+| Run | Standard in scope | Where the recommendation landed | Preamble before it |
+|---|---|---|---|
+| Control | absent (`v2` main checkout) | after two blocks of enumerated findings, mid-reply | full method + findings narration |
+| Treatment v1 | present, original wording | bold single line, ~line 3 | two narration sentences ("So this is not really a judgment call about ambiguous state — the data is clean") |
+| Treatment v2 | present, reworded | bold single line, ~line 3 | one factual clause; the narration sentences are gone |
+
+**What this establishes.** The rule that binds is the structural one — `recommendation first` moved
+the recommendation in both treatment runs and did not in control. That is AC4, the rule the guide
+names as the highest-value one, demonstrated rather than asserted.
+
+**What it disproves, and the fix applied.** The two rules carrying a self-granting escape clause did
+not bind: `Under ~15 lines unless a report or pasted evidence needs it` (every agent judges its own
+reply the exception) and `One table maximum, only to compare on more than two dimensions`. Treatment
+v1 ran ~20 lines, no shorter than control. Both were reworded to describe a structural act instead of
+a self-assessed threshold — `Cut sentences restating the question or narrating what you read` and
+`A table only to compare on 3+ dimensions, never to lay out one thing`. Treatment v2 shows the
+narration lead-in gone, which is the targeted effect.
+
+**Honest limit, recorded rather than smoothed over.** Reply *length* did not materially change across
+all three runs (~20 lines each). Guidance shifts a reply's structure; it does not compress it. The
+numeric cap was removed rather than kept as decoration, since three runs showed nothing honored it.
+Closing the length gap would need enforcement, which this task's cut list explicitly forbids and the
+user explicitly chose against — so it belongs to a follow-up task, not to a silent scope widening
+here.
+
+Suites after the reword: `tests/test_response_standard.py` + `test_agent_guide_dedup.py` -> 58 passed;
+`.claude/hooks/tests/` -> 5 failed / 790 passed; `tests/` -> 1 failed / 41 passed (the 6 known
+pre-existing failures, unchanged); `scripts/validate.sh` -> PASS. Section is 635 chars, under the
+620-char *pair-delta* bound as measured by the guard (qa pair +611); `agents/general-agent-template.md`
+stays at 77 lines, so AC6 remains +15 against its 40-line budget.
+
 ---
 
 ## Demonstration

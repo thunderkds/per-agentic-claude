@@ -48,14 +48,14 @@ are never traded away for a shorter diff. This ladder shortens code, not correct
 
 ## Response Standard
 
-Conversational replies only — Evidence, KANBAN rows, `memory/` and commit messages stay fully
-detailed — the audit trail. Governs the prose around a role guide's
+Replies only — Evidence, KANBAN rows, `memory/` and commit messages stay
+fully detailed: the audit trail. Governs the prose around a role guide's
 fenced `## Output Format` block, never the block.
 
 - Lead with the answer or verdict; method and caveats come after.
 - Asking for a decision: recommendation first, alternatives one line each.
-- Under ~15 lines unless a report or pasted evidence needs it.
-- One table maximum, only to compare on more than two dimensions.
+- Cut sentences restating the question or narrating what you read.
+- A table only to compare on 3+ dimensions, never to lay out one thing.
 - Say what is blocked and what you need, not all you could do.
 - Don't re-list open items your last reply listed; point back in a line.
 
