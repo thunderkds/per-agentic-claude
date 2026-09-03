@@ -23,6 +23,8 @@
      (mean 326, max 796). Reported by the size test, never enforced; /compact-memory's job. -->
 
 ### Decisions
+- [Rules with a self-granting escape clause don't bind](learnings.md) — T100 measured it 3-run A/B: `recommendation first` bound, `under ~15 lines unless...` never did; phrase rules as an act, not a self-graded bar. Guidance reshapes structure, not length.
+- [Verify prompt/agent-config changes by running an agent vs a control](learnings.md) — reading the diff would have passed all 6 T100 rules; running one agent in the worktree and one on the base branch showed 1 of 6 bound.
 - [T097 per-harness projection](decisions.md) — `--harness` selects CLIs at install; MANIFEST destination column; projections are gitignored copies; Codex 8 KB cap skips and names, never truncates
 - [Verify at the harness, not the filesystem](learnings.md) — when the value is "tool X can now see Y", the evidence is X's own output; a directory listing is only a proxy
 - [An unvalidated test seam is an invisible off switch](learnings.md) — HARNESS_SKILL_BODY_CAP silently disabled the cap it gated

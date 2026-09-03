@@ -1884,3 +1884,31 @@ a live fail-open with no test. The two rules genuinely conflict; the Supervisor 
 without surfacing the conflict first. It was caught only because the implementing agent was then
 asked to review the Supervisor's own commit and was told explicitly that being asked to review it
 was not a hint to approve it.
+
+- 2026-09-03 — **An instruction rule that carries a self-granting escape clause does not bind — the
+  agent simply judges itself the exception.** Measured, not theorised: T100's Stage 5 `/verify` drove
+  the *agent-config* surface as a three-run A/B (same decision-shaped question, same model, fresh
+  `common-infrastructure` sub-agent each time — control on `v2` without the standard, treatment with
+  it, treatment with a reworded version). The rule phrased as a **structural act** —
+  `recommendation first, alternatives one line each` — bound every time: it moved the recommendation
+  to the top of the reply in both treatment runs and left it buried mid-reply in control. The two
+  rules phrased as a **threshold the agent grades itself against** —
+  `Under ~15 lines unless a report or pasted evidence needs it` and `One table maximum, only to
+  compare on more than two dimensions` — bound zero times; the treatment reply ran ~20 lines, no
+  shorter than control, because "unless a report needs it" is a permission the agent grants itself in
+  the same breath it reads the rule. Rewording to name an act (`Cut sentences restating the question
+  or narrating what you read`) produced the targeted effect on re-run. **Rule of thumb when writing
+  any instruction text — CLAUDE.md, agent guides, skills**: if a rule's compliance depends on the
+  agent's own assessment of whether the rule applies to it, it is decoration. Phrase it as something
+  to *do* or *delete*, not a bar to clear. **Second-order limit, also measured**: guidance reshapes a
+  reply's structure but does not compress its length — none of the three runs differed materially in
+  line count. Length needs enforcement, not wording. (source: T100 Stage 5 verify)
+
+- 2026-09-03 — **The surface for a prompt/agent-config change is the agent, not the file.** T100
+  changed only instruction text, which reads like a SKIP for runtime verification — but "does this
+  text change what an agent does" is answerable only by running an agent under it and against a
+  control. Reading the diff would have reported PASS on all six rules; running it showed one of six
+  bound. The control run is the load-bearing half: without a v2-rooted agent answering the same
+  question, "the recommendation came first" proves nothing, since the model might have done that
+  anyway. Pattern for any future instruction-text task: same question, same model, fresh agent, one
+  rooted in the worktree and one in the base branch. (source: T100 Stage 5 verify)
