@@ -146,3 +146,55 @@ unnoticed, per the two mutation controls below.
 **WITNESS**: common-infrastructure agent (Task T101), ran the Verification Command and both mutation
 controls in worktree `/home/hungnguyenhuu/workspace/pets/wt-t101` on 2026-09-04; trace at
 `memory/event-trace/T101.jsonl`.
+
+---
+
+## Stage 4 — code-review (Supervisor, 2026-09-04)
+
+**Scope**: `v2..HEAD`, 4 files. Conditional reviewers: `security-reviewer` **not activated** (no auth,
+input handling, secrets, permissions, SQL or shell in the diff — documentation, HTML content and
+pytest assertions only). `adversarial-reviewer` activated (>50 changed lines). `migration-reviewer`,
+`performance-reviewer`, `api-reviewer` not activated — no schema, no query, no public API.
+
+**Phase 0.5 reachability**: entry point `Repository layout` found in `site/index.html` (2 occurrences).
+Reachable — no finding.
+
+**Verdict: 0 P0 / 0 P1 / 2 P2 / 2 P3.** No merge-blocking finding.
+
+Supervisor independently re-ran M1 and M2 rather than trusting the pasted transitions — both
+reproduce: M1 RED (`no dedicated row for canon root path skills/`), M2 RED (`does not name the 8 KB
+Codex skill-body cap`), both GREEN after restore, `20 passed`. Additionally ran the whole new-test
+trio against `git show v2:site/index.html`: **all three RED**, so the set as a whole is non-vacuous.
+
+Every factual claim added to the page was verified against source, not accepted from the diff:
+- `.claude/agents` and `.claude/skills` are genuinely **committed** symlinks — `git ls-files -s`
+  reports mode `120000` for both, so "Committed relative symlink" is accurate, not aspirational.
+- The cap is `8192` (`lib/harness-fetch.sh:204`), and the skip-not-truncate behaviour with a named
+  warning is real (`:290`, `HARNESS_PROJECT_SKIPPED`).
+- Exactly four skills exceed 8192 bytes on disk: `bugfix` (10,173), `craft-spawn-prompt` (10,109),
+  `diagnose` (13,548), `write-better-skill` (14,568). The page's list is complete and correct.
+- AC8 scope lock holds numerically: `/main/setup.sh` = 3 (README) / 5 (site) and `v1 release` = 1,
+  **identical** to the `v2` baseline.
+
+### P2 — Recommended
+
+| # | File | Finding | Confidence | Action |
+|---|---|---|---|---|
+| P2-1 | `tests/test_site_content.py` (`test_providers_section_names_codex_skill_cap_and_skipped_skills`) | **The AC5 assertion is vacuous.** `assert "no Skill tooling" not in body` was never satisfiable-in-reverse: the stale page never contained that string — it said *"cannot enforce: … `Skill`/`Agent` tooling"*. Verified directly against `git show v2:site/index.html`: the literal is absent in both cases and lower-cased. So AC5 ("the section no longer claims non-Claude providers get zero Skill tooling") is **content-satisfied but test-unpinned** — restoring the old wording would not turn any test red. The rest of the test carries it, which is why the trio still went RED against the old page and why this is P2, not P1. **This is the vacuous-assertion family this repo has now recorded double digits of — and the same test the agent already tightened once under M1.** | 100 | Assert against the structural fact instead: that the unenforceable-list no longer contains a `<code>Skill</code>` element while still containing `<code>Agent</code>`. Then mutate the list back to the v2 wording and confirm RED. |
+| P2-2 | *(repo-level, pre-existing — not caused by T101)* | **`v2`'s baseline is red, and one failure is a live budget breach.** `memory/MEMORY.md` is **45,783 / 45,000 chars (-783)**, failing 5 tests, and `README.md` is **73 lines against its own 60-line cap** (`tests/test_readme_slim.py`). Identical 6 failures before and after T101 — 0 regressions, confirmed by diffing sorted `FAILED` sets. Recorded here because the Kanban session-handoff note still asserts *"v2 is clean and green"*, which is now false, and because the hot-tier breach is the exact class that previously broke `main`. | 100 | Own row, not folded into T101. `/compact-memory` for the budget; the README cap needs a decision (raise the cap or re-slim) since T097's harness docs are what pushed it past 60. |
+
+### P3 — Optional
+
+| # | File | Finding | Confidence | Action |
+|---|---|---|---|---|
+| P3-1 | `tests/test_site_content.py:~430` | `_skills_over_codex_cap()` re-derives `os.path.join(ROOT, "skills")` although the module already defines `SKILLS_DIR` at line 20. Harmless duplication, but a second source for one path. | 100 | Use `SKILLS_DIR`. |
+| P3-2 | `tests/test_site_content.py` | The cap assertion is `_word_present(body, f"{cap_kb}") and "KB" in body` — number and unit are checked **independently**, so a page saying "8 skills" plus "KB" elsewhere would pass. Currently safe (exactly one standalone `8` and one `KB` in the section), so it is latent, not live. | 75 | Assert the adjacency, e.g. a regex for `8\s*KB`. |
+
+### Accepted without change
+
+- UI Evidence row 3 (responsiveness) is `☐ N/A` with a written structural justification rather than a
+  browser check. Accepted: `git diff` on the `<style>` block is empty, no `style=` attribute was added,
+  and the new rows sit inside the existing `.table-wrap { overflow-x: auto }` container. Hard-Stop Gate 6
+  is satisfied by a justified N/A. Recorded as **not observed in a browser**, not rounded up to "verified".
+- `verify` is marked `☐ N/A` by the agent because a sub-agent has no `Skill` tool. Correct, and it is
+  **still outstanding** — Stage 5 `/verify` is user-run only in this project.
