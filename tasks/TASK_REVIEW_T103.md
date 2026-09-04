@@ -218,3 +218,45 @@ Stage 5 `/verify` only — user-run in this project. **The surface is a live Sup
 spawned sub-agent: T100 passed its verify at the agent-config surface precisely because sub-agents
 were never the broken channel. The observable claim is that a Supervisor session which has **not**
 opened `agents/general-agent-template.md` still has the six rules in context and follows them.
+
+---
+
+## Stage 5 — /verify (user-run, 2026-09-04): **PASS**
+
+Surface: **the agent**. `CLAUDE.md` is auto-injected config, so the claim is about what a session has
+in context — verified by running real `claude -p` sessions in both trees and comparing, never by
+re-running the suite. The method T100 used (a sub-agent in a worktree vs a control) is the method
+that missed this defect, so it was deliberately not reused: sub-agents were never the broken channel.
+
+**A/B, identical prompt, no files read.** Prompt: *"Without reading, opening, grepping or otherwise
+consulting ANY file, answer from what is already in your context: list verbatim the response-standard
+rules that govern your chat replies. If you do not have them in context, reply exactly: NOT IN
+CONTEXT."*
+
+| Tree | Result |
+|---|---|
+| `wt-t103` (rules inlined) | Returned **all six rules verbatim**, plus the conversation-only scope carve-out |
+| `v2` (pointer form) | **`NOT IN CONTEXT.`** |
+
+That is the defect reproduced and fixed at the only surface where the two forms differ.
+
+**Behavioural probe — reciting is not obeying.** Recall alone would not settle this: T100's whole
+failure mode was rules being nominally present and not binding. Both trees were given the same
+conversational status question. The **control violated two of the six rules in one reply** — a
+2-column `| Field | Value |` table laying out one thing, and a seven-item list of everything a report
+*could* contain rather than what was blocked. The **treatment used no table, led with the verdict,
+and closed on the two things it could not confirm and what it needed.** The rules are being followed,
+not just held.
+
+**Not exercised**: a live sub-agent spawn confirming the template channel still works. Reasoned, not
+skipped: `agents/general-agent-template.md` and all four role guides are byte-unchanged (AC3/AC9,
+verified at Stage 4), so no code path feeding sub-agents was touched, and M3 pins that direction in
+tests. Recorded as inferred rather than observed.
+
+### Findings from the verify run
+
+- The control session, told not to read files, still cited commit `7c6d42d` by hash. Harmless here,
+  but it means "from context only" answers in this repo can silently include git state, so an A/B
+  that relies on context isolation should not assume the session is fully blinded.
+- Neither finding above changes the verdict. The P2 from Stage 4 stands unchanged: `CLAUDE.md` is at
+  exactly 200/200 lines and the next addition has nowhere to go.
