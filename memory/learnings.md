@@ -1948,3 +1948,37 @@ enough only for sub-agents. And verify a Supervisor-facing rule by observing the
 replies over a real session, not by observing a spawned agent. Related: [[the-hot-tier-budget]],
 verify-prompt-changes-by-running-an-agent-vs-a-control (which is correct for agent-facing rules and
 insufficient for Supervisor-facing ones).
+
+**Resolved by T103, merged 2026-09-04.** The six rules now live in `CLAUDE.md` verbatim;
+`agents/general-agent-template.md` and the four role guides are byte-unchanged, because the
+sub-agent channel was never broken. Three mutation controls pin all three directions — revert to a
+pointer, desync the two copies by one word, rename the heading in the template — since a test that
+only checked `CLAUDE.md` would stay green on a repo whose copies had drifted or whose sub-agents had
+silently lost the standard.
+
+**The durable lesson is the verify method, not the fix.** A prompt/config change must be verified at
+the surface where the two forms *differ*. T100 ran a sub-agent in a worktree against a control and
+passed — correctly, because sub-agents receive the template as their system prompt and genuinely did
+bind. T103 ran real `claude -p` sessions in both trees: the treatment returned all six rules verbatim,
+the control returned `NOT IN CONTEXT.` Then a second probe separated **reciting from obeying**, which
+recall alone cannot settle: given the same conversational question, the control violated two of the
+six rules in one reply (a 2-column table laying out one thing; a seven-item list of everything it
+could do) while the treatment used no table and closed on what was blocked.
+
+**Ask "which surface would show the difference?" before choosing the A/B.** A control that shares the
+defect's blind spot passes for the same reason the bug survives.
+
+## CLAUDE.md is at its 200-line cap with zero slack
+
+**Observed 2026-09-04 during T103.** `LINE_CAPS` in `.claude/hooks/tests/test_vital_slice.py` caps
+`CLAUDE.md` at 200 lines, and the file now sits at exactly 200. That cap **forced** T103 to compress
+adjacent Self-monitoring prose to land six new lines — the implementer had no other route and said so
+in its commit message rather than hiding it. The cap's own comment reads *"a ceiling with slack, never
+an equality, and it is expected to be retired or repointed after review."* It is an equality now.
+
+**How to apply**: the next content addition to `CLAUDE.md` has nowhere to go and will silently pay for
+itself by deleting something else. Raise the cap deliberately, or move a section out to
+`docs/claude-md/`, before adding — do not let a forced compression decide what gets cut. Note what
+T103's compression cost: two pieces of *rationale* (the provenance for "replies are not short by
+default", and why the compaction check is a judgment call rather than a trigger). Compressing to fit
+a cap is how a *why* quietly becomes a *what*.
