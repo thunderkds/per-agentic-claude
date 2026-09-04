@@ -17,7 +17,7 @@
 | **New test(s) cover Acceptance Criteria (file paths pasted)** | ☑ pass | `tests/test_site_content.py::test_layout_table_names_canon_root_and_relative_symlinks` (AC1/AC2), `::test_options_table_has_harness_row` (AC3), `::test_providers_section_names_codex_skill_cap_and_skipped_skills` (AC4/AC5). All three watched RED against the pre-change page (see below), then GREEN after the 4 content edits. Baseline before any change: `6 failed, 831 passed` (6 pre-existing, unrelated MEMORY.md-budget/README-line-count failures — same 6 fail before and after this task, confirmed by identical failure names in both runs). After: `6 failed, 834 passed` — **+3 new tests, 0 regressions, 0 pre-existing tests modified**. |
 | Verification command run | ☑ pass | ```\n$ cd "$(git rev-parse --show-toplevel)" && python3 -m pytest tests/ .claude/hooks/tests/ -q 2>&1 \| tail -5 && echo "--- AC8 scope lock ---" && grep -c '/main/setup.sh' README.md site/index.html && grep -c 'v1 release' site/index.html\nFAILED tests/test_readme_slim.py::test_readme_is_at_most_60_lines\nFAILED .claude/hooks/tests/test_memory_channel_and_budget.py::test_live_memory_md_is_within_budget_today\nFAILED .claude/hooks/tests/test_memory_channel_and_budget.py::test_ac10_growth_in_chars_without_growth_in_lines_turns_the_gate_red\nFAILED .claude/hooks/tests/test_memory_channel_and_budget.py::test_ac11_many_short_lines_past_200_stay_green_while_under_budget\nFAILED .claude/hooks/tests/test_memory_channel_and_budget.py::test_ac3_per_entry_report_is_advisory_and_never_fails\nFAILED .claude/hooks/tests/test_token_audit_format.py::test_memory_md_hot_tier_stays_within_char_budget\n6 failed, 834 passed in 11.37s\n--- AC8 scope lock ---\nsite/index.html:5\nREADME.md:3\n1\n```<br>The 6 FAILEDs are the pre-existing MEMORY.md-hot-tier-budget-over-limit and README-60-line failures, present identically at baseline before T101 touched anything — unrelated to this task's scope (`site/index.html`, `README.md` line 11, `tests/test_site_content.py`). AC8: `/main/setup.sh` present in both files (site:5, README:3 matches, all pre-existing/untouched), footer `v1 release` count=1, both byte-unchanged (confirmed by `git diff` showing zero lines touched in the footer or the curl command lines). |
 | Negative cases hold | ☑ pass | Two forms of negative evidence: (1) mutation controls M1/M2 below prove the new tests are not vacuous; (2) `git diff --stat` (see Review scope row) shows the curl install URL and footer `v1 release` string have zero diff lines — the scope-lock negative (AC8) holds. |
-| verify | ☑ N/A | Sub-agent has no `Skill` tool (per `memory/learnings.md`: "A sub-agent has no Skill tool" — the Supervisor must run `verify` at Stage 4). Requesting Supervisor run `Skill({ skill: "verify" })` before merge. |
+| verify | ☑ pass | **Stage 5 `/verify` run by the user 2026-09-04 — pass.** Driven at the real surface (rendered pixels), not at the test suite: the page was rendered in headless Chrome at 1280px and 375px and read. Providers shows the 8 KB cap, skip-not-truncate, and all four skipped skills; the 'still cannot enforce' list carries `Agent` and no longer carries `Skill`. Layout table shows `agents/`/`skills/` canon rows first, then both `.claude/*` rows as committed relative symlinks with the arrow literal. Options table shows the `--harness <name>` row, default `claude`, values `claude`/`codex`. Responsiveness measured rather than argued: across the full 13,319px of 375px content, **0 rows** paint outside the body — no page-level horizontal overflow, which upgrades UI Evidence row 3 from a justified N/A to an observed pass. Probe: every path the docs now claim resolves on disk. |
 | Review scope bounded to the change's blast radius (affected set, not whole repo) | ☑ pass | Diff reviewed: `git status --short` shows exactly the 4 predicted files (`README.md`, `site/index.html`, `tasks/TASK_REVIEW_T101.md`, `tests/test_site_content.py`) — matches *Files to Change* exactly, satisfies AC9. No file in *Files Must NOT Touch* was touched (confirmed: `setup.sh`, `update.sh`, `MANIFEST`, `lib/harness-fetch.sh`, `.claude/hooks/**`, `CLAUDE.md`, `docs/claude-md/folder-structure.md`, `docs/ddr/0007-*.md`, `PROJECT_KANBAN.md`, and every pre-existing test file are all absent from `git status --short`). `<style>` block in `site/index.html` confirmed byte-unchanged via `git diff` filtered to the style block (zero diff lines). |
 | Full smoke suite still green (no regression) | ☑ pass | `831 passed` → `834 passed`; the same 6 pre-existing failures both before and after (identical test names) — zero new regressions, zero pre-existing test files modified. |
 | **UI: Visual regression (diff or verdict pasted)** | ☑ pass | Content-only change per the guide's UI/Design AC scope note (new table rows + prose inside existing `<table>`/`<p class="lead">` markup, no new component). Verified structurally: `git diff` shows every added line reuses existing tags (`<tr><td><code>`, `<p class="lead">`) with no new element type introduced; `test_no_external_assets` and `test_all_scripts_are_inline` (pre-existing, unmodified) still pass, confirming no asset/script drift. |
@@ -294,3 +294,35 @@ test files modified. Those 6 are tracked as **T102** and are explicitly not this
 
 **Outstanding before Done**: Stage 5 `/verify` only. It is user-invocable only in this project — the
 Supervisor cannot run it and will not record a PASS it did not observe.
+
+---
+
+## Stage 5 — /verify (user-run, 2026-09-04): **PASS**
+
+Surface: the rendered page. `site/index.html` is what a reader opens, so the evidence is pixels, not
+pytest — the suite was deliberately **not** re-run here, since running it proves CI works, not that
+the change does. The README half has no runtime surface and was verified by path resolution instead.
+
+Observed at 1280px and 375px in headless Chrome; screenshots delivered to the user.
+
+| # | Driven | Observed |
+|---|---|---|
+| 1 | Rendered the page at 1280px | Paints; all sections present |
+| 2 | Read **Providers** | 8 KB cap, "skipped with a named, loud warning", all four skills as chips; `Skill` gone from the cannot-enforce list, `Agent` retained |
+| 3 | Read **Repository layout** | `agents/`/`skills/` canon rows first; both `.claude/*` rows read "Committed **relative symlink** onto…" with the arrow literal shown |
+| 4 | Read **Options** | `--harness <name>` row present, default `claude`, values `claude`, `codex`, styling identical to siblings |
+| 5 | 🔍 Re-rendered at 375px, measured the right edge across all 13,319px of content | **0 rows** paint outside the body — no page-level horizontal overflow |
+| 6 | 🔍 Resolved every path the docs now claim | `agents/general-agent-template.md`, `skills/`, `agents/` all exist; the old `.claude/` form still resolves via symlink |
+
+**Step 5 upgrades UI Evidence row 3 from a justified `N/A` to an observed pass** — the agent could
+only argue it structurally in a headless round; it is now measured.
+
+### New finding from the verify run (NOT folded into T101)
+
+⚠️ **The footer makes the same stale-canon claim this task existed to fix.** It reads *"drift-tested
+against the live `.claude/` directory by `tests/test_site_content.py`"*, but that file resolves
+`AGENTS_DIR = ROOT/agents` and `SKILLS_DIR = ROOT/skills` (lines 19–20) — **plain root, not
+`.claude/`**. One word wrong, in a sentence about precisely the thing T101 corrected. Deliberately
+**not** fixed here: AC8 locked the footer, and widening scope after a PASS is how a verified diff
+stops matching what was verified. Routed to **T102**, which already owns the *"v2 is clean and
+green"* correction — same category of claim-that-stopped-being-true.
