@@ -158,3 +158,63 @@ spawned sub-agent silently running without it). All three directions are pinned.
   the adjacent "Self-monitoring for context overwhelm" / compact-advisor prose in the same section;
   the blockquote and the compact-advisor `Skill()` call are kept verbatim. User approved this
   approach before implementation. Net line delta: 0.
+
+---
+
+## Stage 4 — code-review (Supervisor, 2026-09-04)
+
+**0 P0 / 0 P1 / 1 P2 / 1 P3.** No merge-blocking finding. `security-review` not activated — Low risk,
+documentation and test-only, no runtime path, no auth/input/secret/shell surface in the diff.
+
+10/10 ACs verified independently, not read off the agent's report:
+
+- **AC1/AC4** — the six rule lines in `CLAUDE.md` parse byte-identical to the template's (compared by
+  extracting both at review time, not by eye).
+- **AC3/AC9** — `agents/general-agent-template.md` and all four role guides **byte-unchanged** vs `v2`.
+- **AC7** — the false docstring premise is corrected at source, and states plainly why the template is
+  not "the one file every sub-agent and the Supervisor reach".
+- **AC8** — `T070_BASELINE_REF` repointed `c87097e` -> `b1da25a` with the convention's comment block;
+  assertion body untouched.
+- **AC10** — exactly two test files touched, both sanctioned by AC7/AC8. `validate.sh` RC=0.
+- Suite **837 passed / 6 failed**, failure set **byte-identical** to the `v2` baseline (T102). 0 regressions.
+
+All three mutation controls re-run by the Supervisor rather than trusting the pasted transitions:
+
+| Mutation | Result |
+|---|---|
+| **M1** — revert `CLAUDE.md`'s section to a pointer | **RED** ×2 — *"does not carry the six rule lines; a pointer is not enough for the Supervisor, whose session the harness does not auto-inject the template into"* |
+| **M2** — desync one word (`verdict` -> `outcome`) between the two copies | **RED** — *"not byte-identical to the template's"* |
+| **M3** — rename the heading in the template | **RED** ×2 — the sub-agent channel is pinned even while `CLAUDE.md` is correct |
+
+M2 and M3 are the ones that matter beyond M1: without them this fix would stay green on a repo whose
+two copies had silently drifted, or one where the template lost the section and every sub-agent was
+broken while the Supervisor looked fine.
+
+### P2 — Recommended (structural, not a defect in this diff)
+
+**`CLAUDE.md` is now at exactly 200/200 lines against `LINE_CAPS` in `test_vital_slice.py` — zero
+slack.** That cap is real and was already at 200 before this task, which is why the six new rule lines
+**forced** compression of the adjacent Self-monitoring prose. The agent did not choose to touch
+neighbouring text gratuitously; it had no other way to land the change, and it said so accurately in
+its commit message. Recorded because the consequence outlives this task: **the next addition to
+`CLAUDE.md` has nowhere to go**, and the file's own comment calls the cap *"a ceiling with slack,
+never an equality… expected to be retired or repointed after review"*. It is now an equality. Either
+the cap gets raised deliberately or the next content change silently pays for itself by deleting
+something else. Own row, not this one.
+
+### P3 — Optional
+
+**The forced compression traded away two pieces of rationale, not just words.** Gone: *"the session
+that registered this rule ran 40+ lines, stacked tables and three-option menus"* — the concrete
+provenance for why replies are not short by default; and *"forcing a rigid checkpoint would make the
+pipeline less flexible for no real gain"* — the reason the compaction check is a judgment call rather
+than a trigger. Both are recoverable from git history and neither is load-bearing for behaviour, so
+this is P3, not P2. Flagged because "compressed to fit a cap" is exactly how a *why* quietly becomes
+a *what*.
+
+### Outstanding
+
+Stage 5 `/verify` only — user-run in this project. **The surface is a live Supervisor session**, not a
+spawned sub-agent: T100 passed its verify at the agent-config surface precisely because sub-agents
+were never the broken channel. The observable claim is that a Supervisor session which has **not**
+opened `agents/general-agent-template.md` still has the six rules in context and follows them.
