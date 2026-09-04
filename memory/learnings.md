@@ -1912,3 +1912,39 @@ was not a hint to approve it.
   question, "the recommendation came first" proves nothing, since the model might have done that
   anyway. Pattern for any future instruction-text task: same question, same model, fresh agent, one
   rooted in the worktree and one in the base branch. (source: T100 Stage 5 verify)
+
+## A pointer in CLAUDE.md to a non-injected file does not bind the Supervisor
+
+**Observed 2026-09-04, on the Supervisor itself, reported by the user.** T100 shipped one Response
+Standard for the Supervisor and every sub-agent. `CLAUDE.md`'s `## Supervisor Communication Style`
+delivers the Supervisor's half as a pointer: *"`agents/general-agent-template.md`'s `## Response
+Standard` binds the Supervisor too: read it and apply it to your own replies."*
+
+It did not bind. Across a long T101 session the Supervisor violated at least three of the six rules
+repeatedly — 2-column status tables ("a table only to compare on 3+ dimensions, never to lay out one
+thing"), re-listing the same open items in four consecutive replies ("don't re-list open items your
+last reply listed"), and narration of what it had just read. The user reported the replies as still
+unfollowable. The Supervisor had **not opened `general-agent-template.md` at any point** in that
+session; it read it only after the complaint.
+
+**Root cause is the delivery channel, not the rules.** The rules themselves are act-shaped and fine.
+`CLAUDE.md` is auto-injected; `agents/general-agent-template.md` is not — it reaches a *sub-agent*
+because Claude Code loads it as that agent's system prompt, and reaches the Supervisor only if the
+Supervisor performs an act (opening the file) that nothing enforces. A rule whose activation depends
+on remembering to fetch the rule cannot govern the behaviour of a session that forgot.
+
+**Third recorded occurrence of one defect class**: T041 named reachability; T066 stated it as
+*"already covered must mean reaches-the-context"*; T082's Stage 5 measured a pointer in a
+non-injected file losing its binding entirely, and fixed it by keeping the rule in `CLAUDE.md`.
+T100 then re-introduced the same shape for its Supervisor half.
+
+**Why T100's own verify missed it**: it was run at the agent-config surface — a sub-agent in a
+worktree against a control on the base branch. Sub-agents get the template as a system prompt, so
+the rules genuinely did bind there. The Supervisor's own live session was never the surface, and it
+is the only surface where the pointer form differs from the inlined form.
+
+**How to apply**: when a rule must govern the Supervisor, inline it in `CLAUDE.md` — a pointer is
+enough only for sub-agents. And verify a Supervisor-facing rule by observing the Supervisor's own
+replies over a real session, not by observing a spawned agent. Related: [[the-hot-tier-budget]],
+verify-prompt-changes-by-running-an-agent-vs-a-control (which is correct for agent-facing rules and
+insufficient for Supervisor-facing ones).
