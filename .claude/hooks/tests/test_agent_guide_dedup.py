@@ -92,7 +92,15 @@ T069_BASELINE_REF = "8d6d56b"
 # comparing against it is red by construction. `c87097e` is T100's CLAUDE.md edit commit. Repointed,
 # NOT deleted, and the assertion body is untouched: the replacement is line-for-line (CLAUDE.md
 # stays at 200 lines, 13 sections), so nothing was collapsed into the agent guides.
-T070_BASELINE_REF = "c87097e"
+#
+# REPOINTED AGAIN by T103 (`c87097e` -> `b1da25a`): T100's pointer form did not bind the Supervisor
+# (measured on the T101 session — see memory/learnings.md). T103's AC1 inlines the six Response
+# Standard rules verbatim into CLAUDE.md's `## Supervisor Communication Style` section, so `c87097e`
+# is now the file's own unfixed state and comparing against it is red by construction. `b1da25a` is
+# T103's CLAUDE.md edit commit. Repointed, NOT deleted, assertion body untouched: CLAUDE.md stays at
+# 200 lines and the six rules replace a pointer + tightened adjacent prose — nothing was collapsed
+# into the agent guides, which T103 leaves byte-unchanged.
+T070_BASELINE_REF = "b1da25a"
 
 # T082's own edit commit (same commit as the repoint above). T082 adds a mandatory Base Rule bullet
 # to `general-agent-template.md` too (the same untrusted-content pointer) — a legitimate, required
