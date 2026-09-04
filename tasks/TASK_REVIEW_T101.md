@@ -198,3 +198,64 @@ Every factual claim added to the page was verified against source, not accepted 
   is satisfied by a justified N/A. Recorded as **not observed in a browser**, not rounded up to "verified".
 - `verify` is marked `☐ N/A` by the agent because a sub-agent has no `Skill` tool. Correct, and it is
   **still outstanding** — Stage 5 `/verify` is user-run only in this project.
+
+---
+
+## Round 2 — Stage 4 review fixes (common-infrastructure agent, 2026-09-04)
+
+Scope: test-quality findings only. `site/index.html` content, `README.md`, and all Acceptance
+Criteria untouched (`git diff --stat`: `tests/test_site_content.py` only, +24 / -7).
+
+### P2-1 — vacuous AC5 assertion replaced with a structural one
+
+Confirmed against source first: `git show v2:site/index.html` Providers section reads
+*"cannot enforce: … `<code>Skill</code>/<code>Agent</code> tooling"* — the literal `"no Skill
+tooling"` / `"no skill tooling"` never appeared on the page, so
+`assert "no Skill tooling" not in body …` could never go RED. That is the vacuous-assertion family
+this repo tracks; fixed at the level it was found rather than reintroduced one level down.
+
+Replacement: extract the *"What a non-Claude provider … cannot enforce"* paragraph and assert on the
+unenforceable-list structure — `"<code>Skill</code>" not in enforce_text` (Codex now runs kit skills
+by name, T097) **and** `"<code>Agent</code>" in enforce_text` (the Agent spawn tool genuinely stays
+Claude-only, so that half stays pinned).
+
+**Mutation transitions** (`-k providers_section_names_codex`):
+
+M-R2 — restored the v2 wording of that sentence (`<code>Skill</code>/<code>Agent</code> tooling`) in
+the last Providers `<p class="lead">`:
+
+```
+RED:
+E       assert '<code>Skill</code>' not in '<p class="l...ollow.\n</p>'
+E         '<code>Skill</code>' is contained here:
+E           e> hooks, <code>Skill</code>/<code>Agent</code> tooling, and
+tests/test_site_content.py:488: AssertionError
+FAILED tests/test_site_content.py::test_providers_section_names_codex_skill_cap_and_skipped_skills
+1 failed, 19 deselected
+```
+
+```
+GREEN (after `git checkout -- site/index.html`):
+1 passed, 19 deselected in 0.01s
+```
+
+The assertion was observed RED naming the right element (`<code>Skill</code>` in the cannot-enforce
+list) before being trusted — the defect being fixed does not recur.
+
+### P3-1 — use the existing `SKILLS_DIR` constant
+
+`_skills_over_codex_cap()` no longer re-derives `os.path.join(ROOT, "skills")`; it now iterates
+`SKILLS_DIR` (module constant, line 20). Single source for the path.
+
+### P3-2 — adjacency assertion for the cap
+
+`_word_present(body, f"{cap_kb}") and "KB" in body` → `re.search(rf"{cap_kb}\s*KB", body)`. Number
+and unit must now be adjacent; `"8 skills"` + a stray `"KB"` no longer passes. Latent-not-live per
+the finding; fixed anyway.
+
+### Suite
+
+`python3 -m pytest tests/ .claude/hooks/tests/ -q` → **834 passed, 6 failed** — the SAME 6
+pre-existing MEMORY.md-budget / README-line-count failures (red on v2 before this task, tracked
+separately as P2-2). `tests/test_site_content.py` alone: `20 passed`. Zero regressions, zero
+pre-existing test files modified, `memory/MEMORY.md` and `README.md` untouched.

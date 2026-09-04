@@ -446,10 +446,9 @@ def test_options_table_has_harness_row():
 
 
 def _skills_over_codex_cap(cap):
-    skills_dir = os.path.join(ROOT, "skills")
     over = []
-    for name in sorted(os.listdir(skills_dir)):
-        skill_md = os.path.join(skills_dir, name, "SKILL.md")
+    for name in sorted(os.listdir(SKILLS_DIR)):
+        skill_md = os.path.join(SKILLS_DIR, name, "SKILL.md")
         if os.path.isfile(skill_md) and os.path.getsize(skill_md) > cap:
             over.append(name)
     return over
@@ -469,12 +468,30 @@ def test_providers_section_names_codex_skill_cap_and_skipped_skills():
     cap_kb = cap_bytes // 1024
 
     body = _providers_section_body()
-    assert _word_present(body, f"{cap_kb}") and "KB" in body, (
-        f"Providers section does not name the {cap_kb} KB Codex skill-body cap"
+    assert re.search(rf"{cap_kb}\s*KB", body), (
+        f"Providers section does not name the {cap_kb} KB Codex skill-body cap "
+        f"as an adjacent number+unit"
     )
-    assert "no Skill tooling" not in body and "no skill tooling" not in body.lower(), (
-        "Providers section still claims non-Claude providers get no Skill tooling at all — "
+
+    # AC5 (structural): the "cannot enforce" list must no longer pin
+    # <code>Skill</code> as unenforceable — T097 gave Codex real skill-by-name
+    # execution — while still pinning <code>Agent</code>, since the Agent spawn
+    # tool genuinely does stay Claude-only. Asserting on the list's structure,
+    # not on a prose literal the stale page never actually contained.
+    enforce_para = re.search(
+        r'<p class="lead">\s*What a non-Claude provider.*?</p>', body, re.DOTALL
+    )
+    assert enforce_para, (
+        "Providers section has no 'What a non-Claude provider ... cannot enforce' paragraph"
+    )
+    enforce_text = enforce_para.group(0)
+    assert "<code>Skill</code>" not in enforce_text, (
+        "Providers 'cannot enforce' list still names <code>Skill</code> as unenforceable — "
         "stale post-T097 (Codex executes kit skills by name)"
+    )
+    assert "<code>Agent</code>" in enforce_text, (
+        "Providers 'cannot enforce' list must still name <code>Agent</code> — the Agent "
+        "spawn tool remains Claude-only"
     )
 
     skipped = _skills_over_codex_cap(cap_bytes)
