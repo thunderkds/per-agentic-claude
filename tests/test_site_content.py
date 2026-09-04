@@ -388,3 +388,98 @@ def test_providers_section_names_no_dead_adapter_path():
     assert mentioned, "Providers section names no adapter path — fixture broken"
     dead = [p for p in mentioned if not os.path.isfile(os.path.join(ROOT, p))]
     assert not dead, f"Providers section names adapter path(s) no longer on disk: {dead}"
+
+
+# ---------------------------------------------------------------------------
+# T101 — drift tests for the four facts that went stale after T096 (canon
+# relocation, DDR-0007) and T097 (per-harness projection). Each reads its
+# source of truth at test time rather than a hardcoded copy, per the pattern
+# in test_every_wired_hook_appears_in_hook_table.
+# ---------------------------------------------------------------------------
+
+HARNESS_FETCH_LIB = os.path.join(ROOT, "lib", "harness-fetch.sh")
+SETUP_SH = os.path.join(ROOT, "setup.sh")
+
+
+def _layout_section_body():
+    text = _page_text()
+    section = re.search(r'<section id="repository-layout">(.*?)</section>', text, re.DOTALL)
+    assert section, "page has no repository-layout section"
+    return section.group(1)
+
+
+def test_layout_table_names_canon_root_and_relative_symlinks():
+    """AC1/AC2: T096/DDR-0007 moved skills/ and agents/ to plain root as canon,
+    with .claude/{skills,agents} as committed *relative* symlinks onto them
+    (docs/ddr/0007-canonical-skills-and-agents-at-plain-root.md,
+    docs/claude-md/folder-structure.md). The layout table must say so."""
+    body = _layout_section_body()
+    assert _word_present(body, "symlink"), (
+        "Repository layout table does not mention symlink — .claude/skills and "
+        "«.claude/agents» are relative symlinks onto plain-root canon (DDR-0007), not real dirs"
+    )
+    for canon_dir in ("skills/", "agents/"):
+        assert re.search(
+            r"<tr><td><code>" + re.escape(canon_dir) + r"</code></td>", body
+        ), f"Repository layout table has no dedicated row for canon root path {canon_dir}"
+
+
+def test_options_table_has_harness_row():
+    """AC3: T097 added a --harness install-time flag; setup.sh's own
+    VALID_HARNESSES is the source of truth for the accepted values."""
+    with open(SETUP_SH, encoding="utf-8") as f:
+        setup_text = f.read()
+    match = re.search(r'^VALID_HARNESSES="([^"]+)"', setup_text, re.MULTILINE)
+    assert match, "could not parse VALID_HARNESSES out of setup.sh"
+    valid_harnesses = match.group(1).split()
+    assert valid_harnesses, "VALID_HARNESSES parsed empty — fixture broken"
+
+    text = _page_text()
+    options_section = re.search(r'<section id="options">(.*?)</section>', text, re.DOTALL)
+    assert options_section, "page has no options section"
+    table = options_section.group(1)
+    assert re.search(r"<code>--harness\b", table), "Options table has no --harness row"
+    for harness in valid_harnesses:
+        assert _word_present(table, harness), (
+            f"Options table's --harness row does not name valid value {harness}"
+        )
+
+
+def _skills_over_codex_cap(cap):
+    skills_dir = os.path.join(ROOT, "skills")
+    over = []
+    for name in sorted(os.listdir(skills_dir)):
+        skill_md = os.path.join(skills_dir, name, "SKILL.md")
+        if os.path.isfile(skill_md) and os.path.getsize(skill_md) > cap:
+            over.append(name)
+    return over
+
+
+def test_providers_section_names_codex_skill_cap_and_skipped_skills():
+    """AC4/AC5: T097 gave Codex real skill-by-name execution with an 8 KB
+    per-skill body cap (lib/harness-fetch.sh:harness_skill_body_cap), and the
+    Providers section must no longer claim non-Claude providers get zero
+    Skill tooling. Cap value and skip list are both derived from source at
+    test time so a future skill crossing the cap re-trips this."""
+    with open(HARNESS_FETCH_LIB, encoding="utf-8") as f:
+        lib_text = f.read()
+    match = re.search(r"codex\)\s*printf '(\d+)'", lib_text)
+    assert match, "could not parse the Codex skill-body cap out of lib/harness-fetch.sh"
+    cap_bytes = int(match.group(1))
+    cap_kb = cap_bytes // 1024
+
+    body = _providers_section_body()
+    assert _word_present(body, f"{cap_kb}") and "KB" in body, (
+        f"Providers section does not name the {cap_kb} KB Codex skill-body cap"
+    )
+    assert "no Skill tooling" not in body and "no skill tooling" not in body.lower(), (
+        "Providers section still claims non-Claude providers get no Skill tooling at all — "
+        "stale post-T097 (Codex executes kit skills by name)"
+    )
+
+    skipped = _skills_over_codex_cap(cap_bytes)
+    assert skipped, "no skill exceeds the Codex cap on disk — fixture broken"
+    missing = [name for name in skipped if not _word_present(body, name)]
+    assert not missing, (
+        f"Providers section does not name skill(s) skipped for exceeding the Codex cap: {missing}"
+    )

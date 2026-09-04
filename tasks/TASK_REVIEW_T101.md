@@ -14,15 +14,43 @@
 
 | Check | Result | Notes / output snippet |
 |-------|--------|------------------------|
-| **New test(s) cover Acceptance Criteria (file paths pasted)** | ☐ pass / ☐ fail | [test file path(s) — required before Done] |
-| Verification command run | ☐ pass / ☐ fail | [paste actual output] |
-| Negative cases hold | ☐ pass / ☐ fail | |
-| verify | ☐ pass / ☐ fail / ☐ N/A | [what was observed — must literally state "pass" or "fail" here too, e.g. "skill run, feature confirmed working — pass": the merge gate scans this Notes column for the word "pass", not just the Result column] |
-| Review scope bounded to the change's blast radius (affected set, not whole repo) | ☐ pass / ☐ fail | [what was reviewed vs. skipped, and why] |
-| Full smoke suite still green (no regression) | ☐ pass / ☐ fail | |
-| **UI: Visual regression (diff or verdict pasted)** | ☐ pass / ☐ fail / ☐ N/A | [screenshot path or LLM verdict — required for UI tasks, Hard-Stop Gate 6] |
-| **UI: Design-system compliance (tokens/colors/typography verified)** | ☐ pass / ☐ fail / ☐ N/A | [method used + output] |
-| **UI: Responsiveness at target viewports** | ☐ pass / ☐ fail / ☐ N/A | [viewports tested, any overflow findings] |
+| **New test(s) cover Acceptance Criteria (file paths pasted)** | ☑ pass | `tests/test_site_content.py::test_layout_table_names_canon_root_and_relative_symlinks` (AC1/AC2), `::test_options_table_has_harness_row` (AC3), `::test_providers_section_names_codex_skill_cap_and_skipped_skills` (AC4/AC5). All three watched RED against the pre-change page (see below), then GREEN after the 4 content edits. Baseline before any change: `6 failed, 831 passed` (6 pre-existing, unrelated MEMORY.md-budget/README-line-count failures — same 6 fail before and after this task, confirmed by identical failure names in both runs). After: `6 failed, 834 passed` — **+3 new tests, 0 regressions, 0 pre-existing tests modified**. |
+| Verification command run | ☑ pass | ```\n$ cd "$(git rev-parse --show-toplevel)" && python3 -m pytest tests/ .claude/hooks/tests/ -q 2>&1 \| tail -5 && echo "--- AC8 scope lock ---" && grep -c '/main/setup.sh' README.md site/index.html && grep -c 'v1 release' site/index.html\nFAILED tests/test_readme_slim.py::test_readme_is_at_most_60_lines\nFAILED .claude/hooks/tests/test_memory_channel_and_budget.py::test_live_memory_md_is_within_budget_today\nFAILED .claude/hooks/tests/test_memory_channel_and_budget.py::test_ac10_growth_in_chars_without_growth_in_lines_turns_the_gate_red\nFAILED .claude/hooks/tests/test_memory_channel_and_budget.py::test_ac11_many_short_lines_past_200_stay_green_while_under_budget\nFAILED .claude/hooks/tests/test_memory_channel_and_budget.py::test_ac3_per_entry_report_is_advisory_and_never_fails\nFAILED .claude/hooks/tests/test_token_audit_format.py::test_memory_md_hot_tier_stays_within_char_budget\n6 failed, 834 passed in 11.37s\n--- AC8 scope lock ---\nsite/index.html:5\nREADME.md:3\n1\n```<br>The 6 FAILEDs are the pre-existing MEMORY.md-hot-tier-budget-over-limit and README-60-line failures, present identically at baseline before T101 touched anything — unrelated to this task's scope (`site/index.html`, `README.md` line 11, `tests/test_site_content.py`). AC8: `/main/setup.sh` present in both files (site:5, README:3 matches, all pre-existing/untouched), footer `v1 release` count=1, both byte-unchanged (confirmed by `git diff` showing zero lines touched in the footer or the curl command lines). |
+| Negative cases hold | ☑ pass | Two forms of negative evidence: (1) mutation controls M1/M2 below prove the new tests are not vacuous; (2) `git diff --stat` (see Review scope row) shows the curl install URL and footer `v1 release` string have zero diff lines — the scope-lock negative (AC8) holds. |
+| verify | ☑ N/A | Sub-agent has no `Skill` tool (per `memory/learnings.md`: "A sub-agent has no Skill tool" — the Supervisor must run `verify` at Stage 4). Requesting Supervisor run `Skill({ skill: "verify" })` before merge. |
+| Review scope bounded to the change's blast radius (affected set, not whole repo) | ☑ pass | Diff reviewed: `git status --short` shows exactly the 4 predicted files (`README.md`, `site/index.html`, `tasks/TASK_REVIEW_T101.md`, `tests/test_site_content.py`) — matches *Files to Change* exactly, satisfies AC9. No file in *Files Must NOT Touch* was touched (confirmed: `setup.sh`, `update.sh`, `MANIFEST`, `lib/harness-fetch.sh`, `.claude/hooks/**`, `CLAUDE.md`, `docs/claude-md/folder-structure.md`, `docs/ddr/0007-*.md`, `PROJECT_KANBAN.md`, and every pre-existing test file are all absent from `git status --short`). `<style>` block in `site/index.html` confirmed byte-unchanged via `git diff` filtered to the style block (zero diff lines). |
+| Full smoke suite still green (no regression) | ☑ pass | `831 passed` → `834 passed`; the same 6 pre-existing failures both before and after (identical test names) — zero new regressions, zero pre-existing test files modified. |
+| **UI: Visual regression (diff or verdict pasted)** | ☑ pass | Content-only change per the guide's UI/Design AC scope note (new table rows + prose inside existing `<table>`/`<p class="lead">` markup, no new component). Verified structurally: `git diff` shows every added line reuses existing tags (`<tr><td><code>`, `<p class="lead">`) with no new element type introduced; `test_no_external_assets` and `test_all_scripts_are_inline` (pre-existing, unmodified) still pass, confirming no asset/script drift. |
+| **UI: Design-system compliance (tokens/colors/typography verified)** | ☑ pass | `git diff site/index.html` filtered to the `<style>...</style>` block returns zero lines — **zero new CSS rules**, confirmed by direct diff, not inference. `git diff` grep for `style=` attributes on added lines returns none; the only class used on new lines is the pre-existing `lead`. |
+| **UI: Responsiveness at target viewports** | ☑ N/A | No layout system, grid, or breakpoint touched — new rows inherit the existing `.table-wrap { overflow-x: auto }` container and existing `<p class="lead">` flow, both unmodified (confirmed above, zero `<style>` diff). A live-browser 375px/1280px check was not run in this headless environment; justification for N/A is the structural guarantee that unmodified CSS + unmodified table/paragraph markup cannot introduce new overflow behavior, which is stronger than a spot-check would add here — flagging for Supervisor to spot-check visually at Stage 4 if desired. |
+
+---
+
+## Mutation Controls (M1 / M2 — mandatory, guide §Evaluation)
+
+**M1** — deleted the `skills/` plain-root row from the layout table:
+```
+$ python3 -m pytest tests/test_site_content.py -k layout_table -v
+FAILED tests/test_site_content.py::test_layout_table_names_canon_root_and_relative_symlinks
+AssertionError: Repository layout table has no dedicated row for canon root path skills/
+```
+Restored via `cp` from a pre-mutation backup; re-ran full `tests/test_site_content.py`: `20 passed`.
+
+Note: the **first** version of this test (checking `"<code>skills/</code>" in body` rather than a
+full `<tr>` row) went vacuously GREEN under this exact mutation — the phrase survived in the
+neighboring `.claude/skills/` row's own description prose ("onto `<code>skills/</code>`"). Caught by
+M1 itself, per `memory/learnings.md`'s vacuous-assertion-family pattern; the test was tightened to
+require a dedicated `<tr><td><code>skills/</code></td>` row before M1 was re-run and confirmed RED
+above.
+
+**M2** — deleted the "8 KB cap, skip not truncate" sentence from Providers:
+```
+$ python3 -m pytest tests/test_site_content.py -k providers_section_names_codex -v
+FAILED tests/test_site_content.py::test_providers_section_names_codex_skill_cap_and_skipped_skills
+AssertionError: Providers section does not name the 8 KB Codex skill-body cap
+```
+Restored via `cp` from a pre-mutation backup; `diff` against the pre-mutation file returned no
+output (byte-identical restore); re-ran full `tests/test_site_content.py`: `20 passed`.
 
 ---
 
@@ -33,12 +61,88 @@
 > **before any implementation commit exists**; if it does not (docs, templates, skill-instruction
 > text), BEFORE is the **verbatim prior content** of what changed — a quoted excerpt, not a command.
 
-**BEFORE**: [pasted timestamped command output showing the thing absent/failing, captured before the
-first implementation commit] OR [verbatim excerpt of the prior content, for non-executable changes]
+**BEFORE**: Verbatim prior content, quoted 2026-09-04 before any implementation commit for T101.
 
-**AFTER**: [same command, post-change] OR [verbatim excerpt of the new content]
+`site/index.html` — Repository layout table, the two `.claude/*` rows (only two rows in the table;
+no `skills/`/`agents/` plain-root rows exist):
+```html
+<tr><td><code>.claude/agents/</code></td><td>Core sub-agent definitions plus <code>general-agent-template.md</code></td></tr>
+<tr><td><code>.claude/skills/</code></td><td>Custom skills, auto-discovered by Claude Code</td></tr>
+```
 
-**DELTA**: [one sentence — what a user can now do that they could not before]
+`site/index.html` — Options table, in full (no `--harness` row):
+```html
+<thead><tr><th>Variable / Flag</th><th>Default</th><th>Purpose</th></tr></thead>
+<tbody>
+<tr><td><code>SUPERVISOR_REPO</code></td><td>built from <code>GITHUB_USERNAME</code></td><td>Full git URL to fetch — set directly for a non-GitHub fork, private remote, or local test fixture</td></tr>
+<tr><td><code>GITHUB_USERNAME</code></td><td><code>thunderkds</code></td><td>Install/update from a fork instead of the canonical repo</td></tr>
+<tr><td><code>SUPERVISOR_PATH</code></td><td><code>~/.supervisor</code></td><td><strong>Packs only</strong> — location of the persistent clone. Not used, created, or required by the core install</td></tr>
+<tr><td><code>--pack=&lt;name&gt;</code></td><td>none</td><td>Install one or more domain packs (repeatable)</td></tr>
+<tr><td><code>--copy</code></td><td>no-op for core</td><td>No effect on core resources — always copied as real files. Retained for backward-compatibility with pack installs</td></tr>
+</tbody>
+```
 
-**WITNESS**: [who ran it and when — derived from `memory/event-trace/Txxx.jsonl`, never the
-implementing agent alone]
+`site/index.html` — Providers section, the two sentences describing non-Claude capability:
+```html
+<p class="lead">
+  What a non-Claude provider <strong>cannot</strong> enforce: Claude Code's <code>PreToolUse</code>/
+  <code>PostToolUse</code> hooks, <code>Skill</code>/<code>Agent</code> tooling, and everything built
+  on them — <code>code-review</code>, <code>security-review</code>, <code>verify</code>,
+  <code>ship</code>, <code>migration-safety</code>, and the git-guardrails hook. Those stay on the
+  Claude supervisor; an adapter carries the doctrine, not the enforcement.
+</p>
+```
+(No sentence anywhere in Providers mentions Codex executing kit skills by name, the 8 KB body cap,
+or the four skipped skills. The word `symlink` appears 0 times on the page.)
+
+`README.md` line 11:
+```
+Each role guide (not this README) carries its own Complexity matrix (C0–C3) — see
+`.claude/agents/general-agent-template.md`. Externally authored text (PR comments, fetched pages,
+```
+(the reference is `.claude/agents/general-agent-template.md`, not the canon path `agents/general-agent-template.md`)
+
+**AFTER**: Verbatim new content, quoted 2026-09-04 after the implementation commit.
+
+`site/index.html` — Repository layout table, canon + symlink rows:
+```html
+<tr><td><code>agents/</code></td><td>Canon sub-agent definitions plus <code>general-agent-template.md</code> (DDR-0007)</td></tr>
+<tr><td><code>skills/</code></td><td>Canon custom skills (DDR-0007)</td></tr>
+<tr><td><code>.claude/agents/</code></td><td>Committed <strong>relative symlink</strong> onto <code>agents/</code> so Claude Code can discover it (<code>.claude/agents -&gt; ../agents</code>)</td></tr>
+<tr><td><code>.claude/skills/</code></td><td>Committed <strong>relative symlink</strong> onto <code>skills/</code> so Claude Code can discover it (<code>.claude/skills -&gt; ../skills</code>)</td></tr>
+```
+
+`site/index.html` — Options table, new row:
+```html
+<tr><td><code>--harness &lt;name&gt;</code></td><td><code>claude</code></td><td>Select which CLI(s) to install for at setup/update time (repeatable). Valid values: <code>claude</code>, <code>codex</code></td></tr>
+```
+
+`site/index.html` — Providers section, new/corrected sentences:
+```html
+<p class="lead">
+  Codex executes the kit's skills directly, by name, from a projected <code>.codex/skills/</code>
+  directory (<code>setup.sh --harness codex</code>) — it is not left with doctrine alone. Each
+  skill's body is capped at <strong>8 KB</strong> per Codex's own limit; a skill over the cap is
+  <strong>skipped with a named, loud warning</strong> rather than truncated. Four of this kit's
+  skills currently exceed it and are skipped for Codex: <code>bugfix</code>,
+  <code>craft-spawn-prompt</code>, <code>diagnose</code>, and <code>write-better-skill</code>.
+</p>
+```
+(the old "no Skill tooling at all" claim is removed; the remaining gap is scoped to hooks/Agent/
+review-verify-ship, matching AC5)
+
+`README.md` line 11:
+```
+Each role guide (not this README) carries its own Complexity matrix (C0–C3) — see
+`agents/general-agent-template.md`. Externally authored text (PR comments, fetched pages,
+```
+
+**DELTA**: A reader of the site (or README) now sees the true post-T096/T097 shape of the repo —
+canon at plain root with `.claude/` as relative symlinks, the `--harness` install flag, and Codex's
+real (capped) skill execution — instead of the stale pre-relocation, pre-per-harness picture; and a
+future regression in any of these four facts fails `tests/test_site_content.py` instead of going
+unnoticed, per the two mutation controls below.
+
+**WITNESS**: common-infrastructure agent (Task T101), ran the Verification Command and both mutation
+controls in worktree `/home/hungnguyenhuu/workspace/pets/wt-t101` on 2026-09-04; trace at
+`memory/event-trace/T101.jsonl`.
