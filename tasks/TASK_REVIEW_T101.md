@@ -259,3 +259,38 @@ the finding; fixed anyway.
 pre-existing MEMORY.md-budget / README-line-count failures (red on v2 before this task, tracked
 separately as P2-2). `tests/test_site_content.py` alone: `20 passed`. Zero regressions, zero
 pre-existing test files modified, `memory/MEMORY.md` and `README.md` untouched.
+
+---
+
+## Stage 4 — Round 2 sign-off (Supervisor, 2026-09-04)
+
+**All 4 round-2 findings closed. 0 P0 / 0 P1 / 0 P2 / 0 P3 outstanding.**
+
+The Supervisor re-ran the mutation controls independently rather than accepting the agent's pasted
+transitions, and extended them: the round-2 fix touches an assertion whose whole defect was that it
+had never been observed RED, so two transitions were not enough to trust it.
+
+| Mutation | Applied | Result |
+|---|---|---|
+| **M3a** — restore `v2`'s **exact** `cannot enforce` paragraph, lifted verbatim from `git show v2:site/index.html` | ✅ | **RED** — *"Providers 'cannot enforce' list still names `<code>Skill</code>` as unenforceable — stale post-T097"* (`:488`) |
+| **M3b** — remove `<code>Agent</code>` from that list | ✅ | **RED** — *"must still name `<code>Agent</code>` — the Agent spawn tool remains Claude-only"* (`:492`) |
+| **M4** — break the number/unit adjacency: `<strong>8 KB</strong>` → `<strong>8</strong> kilobytes` | ✅ | **RED** — *"does not name the 8 KB Codex skill-body cap as an adjacent number+unit"* (`:471`) |
+
+All three restored byte-identically; `tests/test_site_content.py` → **20 passed**, `git status --short`
+empty. M3a is the load-bearing one: the assertion now fails against the **real** prior wording, which
+is precisely what its predecessor could not do.
+
+M3b matters as much as M3a and was not requested — it proves the fix did not overshoot. Deleting
+`Skill` from the unenforceable list is only correct if `Agent` stays pinned there, since the `Agent`
+spawn tool genuinely does remain Claude-only. An assertion that merely required `Skill` to be absent
+would go green on a page that had deleted the whole paragraph. Both directions are now pinned.
+
+P3-1 confirmed: `_skills_over_codex_cap()` uses the module-level `SKILLS_DIR` (line 20); no second
+path derivation remains in the file.
+
+**Full suite after round 2: `6 failed, 834 passed`** — the same 6 pre-existing failures, unchanged
+from the `v2` baseline of `6 failed, 831 passed`. +3 net new tests, 0 regressions, 0 pre-existing
+test files modified. Those 6 are tracked as **T102** and are explicitly not this task's to fix.
+
+**Outstanding before Done**: Stage 5 `/verify` only. It is user-invocable only in this project — the
+Supervisor cannot run it and will not record a PASS it did not observe.
