@@ -471,12 +471,12 @@ def _footer_body():
 
 def test_footer_names_the_directories_it_is_actually_drift_tested_against():
     body = _footer_body()
-    agents_basename = os.path.basename(AGENTS_DIR) + "/"
-    skills_basename = os.path.basename(SKILLS_DIR) + "/"
-    for expected in (agents_basename, skills_basename):
-        assert _word_present(body, f"<code>{expected}</code>"), (
+    agents_rel = os.path.relpath(AGENTS_DIR, ROOT) + "/"
+    skills_rel = os.path.relpath(SKILLS_DIR, ROOT) + "/"
+    for expected in (agents_rel, skills_rel):
+        assert f"<code>{expected}</code>" in body, (
             f"footer does not name the live {expected} directory "
-            f"(derived from AGENTS_DIR/SKILLS_DIR at test time)"
+            f"(derived from AGENTS_DIR/SKILLS_DIR's path relative to ROOT at test time)"
         )
 
 
