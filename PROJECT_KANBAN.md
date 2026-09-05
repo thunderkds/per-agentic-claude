@@ -11,8 +11,11 @@
 
 > **Session handoff — 2026-08-31.** T097 merged. Its worktree and the T096 lessons both held: the
 > guide was tracked before the spawn, and the `setsid` launch survived (46 min elapsed, agent
-> completed with 5 commits). v2 is clean and green: 707 hook tests, 40 tests, 41 projection tests,
-> `validate.sh` and `smoke-install.sh` RC=0.
+> completed with 5 commits). `validate.sh` and `smoke-install.sh` returned RC=0 at merge time; the
+> full suite's pass/fail counts were not re-measured after that merge, and T102 (registered
+> 2026-09-04) found the board's later "clean and green" framing of this note was stale — see T102
+> for the measured baseline as of 2026-09-05: `python3 -m pytest tests/ .claude/hooks/tests/ -q`
+> returns **6 failed, 837 passed** on a clean `v2` checkout.
 >
 > **The kit now installs into Codex.** `setup.sh --harness codex` projects canon into `.codex/skills/`;
 > a real Codex 0.149.1 session executes kit skills by name. Four skills exceed Codex's 8 KB body cap
