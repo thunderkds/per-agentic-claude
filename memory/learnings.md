@@ -2017,3 +2017,16 @@ the date it was taken, the note says outright that a count there is a measuremen
 standing claim, and a post-merge figure is **measured after the merge rather than predicted in the
 commit that merges it**. Generalises to any prose asserting a repo-wide count — test totals, line
 counts, entry counts, file hashes.
+
+## The merge gate reads Kanban section membership, not the checkbox (T104, 2026-09-05)
+
+Ticking `- [ ]` to `- [x]` while leaving a row physically under `### In Progress` did not satisfy
+`pre_bash_block_unsafe_merge.py` — it parses `tasks_in_section("In Progress")` by regex-matching the
+block of text between `### In Progress` and the next `###` heading, and lists every `**Txxx**` found
+there regardless of its checkbox glyph. The row has to be **moved** to under `### Done`, not just
+flagged. Second gotcha compounding the first: the gate reads `PROJECT_KANBAN.md` from the **currently
+checked-out branch** (`v2` in the main checkout), not from the worktree doing the work — so a Done
+edit committed only on the feature branch does not unblock the merge that would bring it in. Fix
+applied here: commit the Done move directly on `v2` (main checkout) *before* running `git merge`,
+matching the T046 convention ("close the task on Kanban BEFORE `git merge`") — the merge then lands
+cleanly since both sides carry the same text.

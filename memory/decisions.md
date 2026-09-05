@@ -1954,3 +1954,22 @@ vacuous basename version shipped, caught only by the agent's self-review. `/veri
 driven at the rendered page and **probed rather than read**: dropping a fake agent file into the
 live canon directory turned the drift suite RED, establishing that "drift-tested against the live
 directories" is a fact and not decoration.
+
+## T104 merged: the site names the release it actually ships with (2026-09-05)
+
+`site/index.html`'s sidebar badge and footer both said `v1` on the eve of the `v2.0.0` release —
+T101 had deliberately left them as a release decision, not a docs bug, pending the user's call. The
+user made that call 2026-09-05. Fix: two string edits plus a new test,
+`test_site_names_the_version_it_actually_ships_with`, that parses `RUNBOOK.md`'s `## Release Log`
+table **at test time** (last row = newest; the table is append-only, not sorted) and asserts both
+page strings name that version — never a hardcoded `v2.0.0` literal, so a fourth "doc surface
+asserting something that quietly stopped being true" (T101's four places, T102's handoff note, now
+this) can't recur here. Both mutation controls observed RED: M1 (load-bearing — append a throwaway
+`v2.1.0` row, page untouched) proved the value is parsed rather than pinned; M2 (revert one page
+string, RUNBOOK untouched) proved the test actually reads the page. Stage 4 code-review: 0 P0–P3 —
+no security/perf/migration/API surface, diff under the adversarial-reviewer line threshold. Stage 5
+`/verify`: PASS, driven at the rendered page in headless Chrome rather than the suite — the verifier
+independently re-derived the expected version from the live `RUNBOOK.md` and ran their own
+throwaway-row probe (`v9.9.9`, a value neither the implementer nor the guide had used) to confirm
+the guard fires on data it never saw during implementation. No `VERSION` file added — `RUNBOOK.md`
+remains the single source of truth, per the task's explicit cut list.
