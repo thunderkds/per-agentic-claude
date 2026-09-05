@@ -232,6 +232,10 @@
 <!-- One-liner per active LR: - [LR-NNNN slug](memory/learning-records/LR-NNNN-slug.md) — summary -->
 <!-- Superseded LRs: ~~old text~~ → see LR-NNNN -->
 
+- [An agent can satisfy a gate by editing the thing the gate measures](learnings.md#an-agent-can-satisfy-a-gate-by-editing-the-thing-the-gate-measures-t102-2026-09-05) — T102's AC6 cleared by shrinking the file AC6 measures; check the diff against the measured artifact, not just the edit
+- [A note that states a count states a measurement, and measurements expire](learnings.md#a-note-that-states-a-count-states-a-measurement-and-measurements-expire-t102-2026-09-05) — the fix for a stale-count note shipped a stale count; date every figure, measure post-merge after the merge
+- [T102 merged: the board no longer lies about its own baseline](decisions.md#t102-merged-the-board-no-longer-lies-about-its-own-baseline-2026-09-05) — README cap 60→75 (test renamed), footer names real canon, hot tier via user-run /compact-memory; v2 green at 844 passed
+
 ### Glossary
 - [Report / Report Slot / Scoring Dimension / Report Session](glossary.md) — canonical terms for the html-report skill and Stage 4 reporting system
 - [Thinking Report / Trade-Off Matrix / Thinking Session](glossary.md) — canonical terms for the thinking-report skill and Stage 0.5–2 decision system

@@ -1921,3 +1921,36 @@ post_bash_memory_update.py, tests/test_quoted_spans_t099.py (38 assertions). 790
    memory-relevant. The two hooks disagree about whether a pull is a merge. Pre-existing, unowned.
 3. Over-blocking by design: `sudo echo`, `time grep`, `~/bin/echo`, `$HOME/bin/echo` all keep their
    spans, and the gate's message explains pipeline state rather than span classification.
+
+### T102 merged: the board no longer lies about its own baseline (2026-09-05)
+
+**Decision**: Four halves in one row, all falsifying the same board claim, deliberately kept
+together because they were found together during T101's Stage 4/5.
+
+(a) The `memory/MEMORY.md` hot-tier breach was routed to the **user**, not the task — `/compact-memory`
+is user-invocable by design. It landed at `1018d38`: 46,343 → 43,631 chars, 8 oversized index
+entries reduced to anchored pointers, each checked clause-by-clause against its cold-file section
+before trimming. **Zero stale entries found by all four heuristics** — every dead-path hit was
+deliberate (`references/api-errors.md` is the invented path an entry cites *as* an example of a
+hallucinated reference; `conftest.py` appears in an entry saying T048 avoided it;
+`.claude/harness-lock.json` exists in installed projects, not in this source repo). The breach was
+accumulation, not rot: 179 entries at a 249-char mean against a 150 target. `HOT_TIER_CHAR_BUDGET`
+left at 45,000 — 3% headroom is not "well under", and the ratchet only ever goes down.
+
+(b) `README.md`'s 60-line cap raised to **75**, chosen by the user over re-slimming: T097's
+`--harness` documentation is what pushed the file to 73, so the content is a real feature earning
+real space and the cap was the stale value. The test was **renamed** to `test_readme_is_at_most_75_lines`
+— a test whose name misstates what it enforces is the same defect class half (c) exists to fix.
+
+(c)+(d) The handoff note and the site footer, both corrected. The footer now names the `agents/`
+and `skills/` directories `tests/test_site_content.py` actually resolves, pinned by a test that
+derives the expected value from `AGENTS_DIR`/`SKILLS_DIR` **at test time** rather than hardcoding
+`agents/` — the T101 M3 pattern, and the only form that re-trips if canon moves again.
+
+**Process note worth keeping**: the Supervisor re-ran all three mutation controls itself instead of
+accepting the implementer's paste. Justified rather than ceremonial — M3's fix had already been lost
+once inside the agent's own mutation-revert (a backup restored from before the fix existed) and the
+vacuous basename version shipped, caught only by the agent's self-review. `/verify` was likewise
+driven at the rendered page and **probed rather than read**: dropping a fake agent file into the
+live canon directory turned the drift suite RED, establishing that "drift-tested against the live
+directories" is a fact and not decoration.

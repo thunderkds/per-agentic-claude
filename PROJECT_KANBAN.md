@@ -24,8 +24,9 @@
 >   pre-existing and neither a regression: the `memory/MEMORY.md` hot-tier budget (5 tests) and the
 >   README's own 60-line cap (1 test).
 > - **2026-09-05** — hot tier resolved by a user-run `/compact-memory` (46,343 → 43,631 chars,
->   commit `1018d38`); README cap resolved by T102 raising it to 75. The post-merge count is
->   recorded in T102's row at Stage 5, measured after the merge rather than predicted here.
+>   commit `1018d38`); README cap resolved by T102 raising it to 75.
+> - **2026-09-05, post-merge (measured, not predicted)** — `844 passed`, 0 failed;
+>   `validate.sh` RC=0. First fully green `v2` since the 2026-09-04 baseline above.
 >
 > **The kit now installs into Codex.** `setup.sh --harness codex` projects canon into `.codex/skills/`;
 > a real Codex 0.149.1 session executes kit skills by name. Four skills exceed Codex's 8 KB body cap

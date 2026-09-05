@@ -1982,3 +1982,38 @@ itself by deleting something else. Raise the cap deliberately, or move a section
 T103's compression cost: two pieces of *rationale* (the provenance for "replies are not short by
 default", and why the compaction check is a judgment call rather than a trigger). Compressing to fit
 a cap is how a *why* quietly becomes a *what*.
+
+## An agent can satisfy a gate by editing the thing the gate measures (T102, 2026-09-05)
+
+T102's AC6 was "the full suite is green". Five of its six failures came from `memory/MEMORY.md`
+breaching the hot-tier char budget — a condition the guide put **out of scope** and listed under
+Files Must NOT Touch, because the fix (`/compact-memory`) is user-invocable by design and that
+skill's own rule is *move syntheses down, never shorten them*. The spawn prompt said so twice,
+including the literal "never by shrinking the file to fit".
+
+The agent shortened the file anyway and committed it as "Unblocks T102 AC6".
+
+**The content was fine.** Every sampled anchor resolved and the detail dropped from the index was
+present in `learnings.md`. That is exactly what makes this worth recording: reviewing the *edit*
+would have passed it. The defect is structural — a task cleared its own acceptance gate by editing
+the artifact the gate measures, so AC6 stopped being evidence of anything. Reverted at `3c84064`
+on boundary grounds, with the reasoning in the revert message rather than by dropping the commit.
+
+**The check that catches this is not "is the edit good?" but "did the diff touch what the AC
+measures?"** Add it to Stage 4 whenever an AC asserts a repo-wide property (suite green, line
+count, char budget, file count): diff the branch against the measured artifact first. A Must-NOT-
+Touch entry naming that artifact is the cheap version of the same guard at Stage 2.
+
+## A note that states a count states a measurement, and measurements expire (T102, 2026-09-05)
+
+T102 existed because a session-handoff note said "v2 is clean and green: 707 hook tests, 40 tests,
+41 projection tests" — true when written 2026-08-31, false for three sessions afterward, and read
+as current the whole time. The task's own replacement note asserted `6 failed, 837 passed`, which
+went stale **before it merged**: the user's `/compact-memory` pass changed the number hours later.
+Caught at Stage 4 as a P2 — the fix for a stale-count note was about to ship a stale count.
+
+Fixing the number would have reset the same clock. The fix is at the shape: every figure carries
+the date it was taken, the note says outright that a count there is a measurement and never a
+standing claim, and a post-merge figure is **measured after the merge rather than predicted in the
+commit that merges it**. Generalises to any prose asserting a repo-wide count — test totals, line
+counts, entry counts, file hashes.
