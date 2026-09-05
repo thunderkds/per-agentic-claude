@@ -1973,3 +1973,15 @@ independently re-derived the expected version from the live `RUNBOOK.md` and ran
 throwaway-row probe (`v9.9.9`, a value neither the implementer nor the guide had used) to confirm
 the guard fires on data it never saw during implementation. No `VERSION` file added — `RUNBOOK.md`
 remains the single source of truth, per the task's explicit cut list.
+
+## v2.0.0 shipped: the 2026-08-25 main-freeze is reversed for this release (2026-09-05)
+
+The 2026-08-25 decision ("v2 is the working branch; main is frozen as the v1 runtime") held that
+`main` would never be a merge target without the user explicitly reversing it. Releasing v2.0.0 for
+real requires exactly that: `main` fast-forwarded from `a586000` to `b6ef559` (0 divergent commits,
+clean FF, no merge commit needed) and was pushed alongside an annotated `v2.0.0` tag. The freeze
+policy is not repealed — it describes day-to-day Stage 3/5 branching, which still targets `v2` — but
+a tagged release is now the recognized, deliberate exception that promotes `v2`'s state onto `main`.
+Health check: a fresh `curl | sh` install from the published `main` exited 0, printed `Setup
+complete`, and the three post-install assertions in `RUNBOOK.md`'s Deploy Procedure all held. See
+`RUNBOOK.md`'s Release Log for the full scope (T086, T089, T090–T104) and rollback exposure notes.
