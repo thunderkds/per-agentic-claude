@@ -33,8 +33,25 @@
 > **before any implementation commit exists**; if it does not (docs, templates, skill-instruction
 > text), BEFORE is the **verbatim prior content** of what changed — a quoted excerpt, not a command.
 
-**BEFORE**: [pasted timestamped command output showing the thing absent/failing, captured before the
-first implementation commit] OR [verbatim excerpt of the prior content, for non-executable changes]
+**BEFORE**: Captured 2026-09-05T09:51Z, before any implementation commit.
+
+Verbatim `site/index.html:180`:
+```
+  <p class="brand-sub">supervisor kit &middot; v1</p>
+```
+
+Verbatim `site/index.html:562`:
+```
+  personal-agentic-claude — v1 release. This page is generated content, drift-tested against the
+```
+
+Baseline suite, run 2026-09-05T09:51:40Z:
+```
+$ cd "$(git rev-parse --show-toplevel)" && python3 -m pytest tests/ .claude/hooks/tests/ -q 2>&1 | tail -3
+........................................................................ [ 93%]
+....................................................                     [100%]
+844 passed in 10.07s
+```
 
 **AFTER**: [same command, post-change] OR [verbatim excerpt of the new content]
 

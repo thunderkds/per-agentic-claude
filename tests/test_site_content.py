@@ -526,3 +526,35 @@ def test_providers_section_names_codex_skill_cap_and_skipped_skills():
     assert not missing, (
         f"Providers section does not name skill(s) skipped for exceeding the Codex cap: {missing}"
     )
+
+
+# ---------------------------------------------------------------------------
+# T104 — the page must name the release it actually ships with. The expected
+# version is parsed from RUNBOOK.md's Release Log table at test time (the
+# newest/last data row), never hardcoded — see M1 in TASK_GUIDE_T104.md.
+# ---------------------------------------------------------------------------
+
+RUNBOOK_PATH = os.path.join(ROOT, "RUNBOOK.md")
+
+
+def _newest_runbook_version():
+    with open(RUNBOOK_PATH, encoding="utf-8") as f:
+        text = f.read()
+    section = re.search(r"## Release Log(.*?)(?=\n## |\Z)", text, re.DOTALL)
+    assert section, "RUNBOOK.md has no '## Release Log' section"
+    rows = re.findall(r"^\|\s*(v\d+\.\d+\.\d+)\s*\|", section.group(1), re.MULTILINE)
+    assert rows, "no version rows found in RUNBOOK.md's Release Log table"
+    return rows[-1]
+
+
+def test_site_names_the_version_it_actually_ships_with():
+    version = _newest_runbook_version()
+    text = _page_text()
+    assert f"supervisor kit &middot; {version}" in text, (
+        f"sidebar does not name the shipping version {version} (from RUNBOOK.md's "
+        f"Release Log, newest row)"
+    )
+    assert f"personal-agentic-claude — {version} release" in text, (
+        f"footer does not name the shipping version {version} (from RUNBOOK.md's "
+        f"Release Log, newest row)"
+    )
