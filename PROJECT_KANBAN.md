@@ -43,6 +43,8 @@
 
 
 ### In Progress
+- [ ] **T104** — **The site advertises `v1` on the eve of a `v2.0.0` release.** Registered 2026-09-05 from the `ship` pass for v2.0.0. `site/index.html` names v1 in two places — the sidebar badge at line 180 (`supervisor kit &middot; v1`) and the footer at 562 (`— v1 release`). Neither is rot: **T101 deliberately left them**, recording the footer as a *release decision* rather than a docs fix, because `main` was still the user's live v1 install and retargeting was not T101's call. The user made that decision 2026-09-05: update them. Scope is two strings and one test — and the test is the point, since this is the third time in three tasks that a doc surface has been found asserting something that had quietly stopped being true (T101's four places, T102's handoff note, now this). AC3 requires the expected version be **parsed from `RUNBOOK.md`'s Release Log at test time**, never a hardcoded `v2.0.0` literal, with M1 (append a `v2.1.0` row, leave the page alone → must go RED) as the control that distinguishes the two. No `VERSION` file: `RUNBOOK.md` already records releases and a second source of truth is what would drift | Common-Infrastructure-Agent | C0 | Risk: Low | P0 | Registered 2026-09-05 | **Stage 2 planned 2026-09-05** — guide at `tasks/TASK_GUIDE_T104.md`, 6 ACs, 3 Success Criteria incl. 2 mutation controls. **Blocks the v2.0.0 release**
+
 
 
 
