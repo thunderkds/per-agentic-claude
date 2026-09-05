@@ -1,5 +1,5 @@
 # RUNBOOK — Personal Agentic Claude (Supervisor harness)
-**Last updated**: 2026-08-15
+**Last updated**: 2026-09-05
 
 > Operational runbook: how to deploy, verify, and recover this service. Written/appended by the `ship` skill after Stage 5 verification, and kept current by whoever last touched the deploy path. This is the document an operator opens at 3am — every command must be copy-pasteable and every check must have a pass condition.
 
@@ -82,6 +82,20 @@ Ordered steps to ship a release. Commands copy-pasteable.
   3. Nothing to un-migrate: there is no database, no service, no state outside the consumer's repo.
 - **Verify rollback**: re-run the §Deploy step-4 health check. Pass condition is the same, except
   the `templates/TASK_GUIDE_template.md` grep should match the **previous** release's content.
+
+### v2.0.0 — additional rollback exposure (canon relocation)
+
+v2.0.0 moves canon from `.claude/agents/` and `.claude/skills/` to plain root and leaves committed
+**relative symlinks** behind. That changes what a rollback has to restore in a downstream repo:
+
+- A v2 install replaced two real directories with symlinks. Rolling `main` back to `v1.1.0` and
+  re-running `update.sh` does **not** automatically turn those symlinks back into directories —
+  `update.sh` compares hashes per MANIFEST path, and a symlink is not a MANIFEST path.
+- Recovery in an affected downstream repo is manual and must be done before re-running the v1
+  installer: `rm .claude/agents .claude/skills` (they are symlinks — this removes the links, not
+  the canon), then `bash setup.sh` from the restored `main`.
+- **Check before you rollback**: `ls -l .claude/agents` in the downstream repo. A `->` in the
+  output means the repo is on v2 layout and needs the manual step above.
 
 > **Downstream repos already updated are NOT rolled back by any of this.** They hold real copied
 > files. Recovery there is `bash update.sh` against the restored `main`, per-file, with the conflict
@@ -191,3 +205,4 @@ gitignored).
 |---------------|------|------------------|----------|---------|
 | v1.0.0 | 2026-08-15 | T070 (first tagged release; codifies the state of `main` at `238421c`) | hungnh1110@gmail.com | _pending operator execution_ |
 | v1.1.0 | 2026-08-21 | T083, T084, T085, T087, T088 — public landing site, Vercel deploy config, README 477→55, site reference content, PACK.md flag fix | hungnh1110@gmail.com | _pending operator execution — site deploy not yet run_ |
+| v2.0.0 | 2026-09-05 | **BREAKING.** T086, T089, T090–T103 — canon relocated to plain root (`agents/`, `skills/`) with `.claude/*` kept as committed relative symlinks (T096, DDR-0007); per-harness install projection and `setup.sh --harness codex|claude` (T097/T098); provider adapters `AGENTS.md` + `.cursor/rules/agent-base.mdc` (T090/T091); merge-gate and quoted-span hook fixes (T094/T095/T099); Response Standard inlined into `CLAUDE.md` (T100/T103); docs and baseline reconciliation (T101/T102) | hungnh1110@gmail.com | _pending operator_ |
