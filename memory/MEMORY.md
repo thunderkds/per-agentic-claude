@@ -238,6 +238,8 @@
 - [T104 merged: the site names v2.0.0](decisions.md#t104-merged-the-site-names-the-release-it-actually-ships-with-2026-09-05) — sidebar/footer parsed from RUNBOOK's Release Log at test time, not hardcoded; M1 (fresh row) load-bearing
 - [Merge gate reads Kanban section, not the checkbox](learnings.md#the-merge-gate-reads-kanban-section-membership-not-the-checkbox-t104-2026-09-05) — move the row under ### Done; commit that on the checked-out branch before merging, not just the feature branch
 
+- [A commit message can overclaim what its own evidence file records](learnings.md#a-commit-message-can-overclaim-what-its-own-evidence-file-records-t104-2026-09-05) — 3rd in 3 tasks: code right, summary wrong; read the Evidence table against the commit subjects before accepting done
+
 ### Glossary
 - [Report / Report Slot / Scoring Dimension / Report Session](glossary.md) — canonical terms for the html-report skill and Stage 4 reporting system
 - [Thinking Report / Trade-Off Matrix / Thinking Session](glossary.md) — canonical terms for the thinking-report skill and Stage 0.5–2 decision system
