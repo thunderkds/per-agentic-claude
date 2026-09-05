@@ -454,6 +454,32 @@ def _skills_over_codex_cap(cap):
     return over
 
 
+# ---------------------------------------------------------------------------
+# T102 AC4/AC5 — the footer's drift-tested-against sentence must name the
+# directories AGENTS_DIR/SKILLS_DIR actually resolve to, derived at test time
+# (not a hardcoded "agents/"/"skills/" literal) so it re-trips if the canon
+# moves again — same M3 pattern as test_step_limit_matches_source.
+# ---------------------------------------------------------------------------
+
+
+def _footer_body():
+    text = _page_text()
+    footer = re.search(r"<footer\b[^>]*>(.*?)</footer>", text, re.DOTALL)
+    assert footer, "page has no <footer> element"
+    return footer.group(1)
+
+
+def test_footer_names_the_directories_it_is_actually_drift_tested_against():
+    body = _footer_body()
+    agents_rel = os.path.relpath(AGENTS_DIR, ROOT) + "/"
+    skills_rel = os.path.relpath(SKILLS_DIR, ROOT) + "/"
+    for expected in (agents_rel, skills_rel):
+        assert f"<code>{expected}</code>" in body, (
+            f"footer does not name the live {expected} directory "
+            f"(derived from AGENTS_DIR/SKILLS_DIR's path relative to ROOT at test time)"
+        )
+
+
 def test_providers_section_names_codex_skill_cap_and_skipped_skills():
     """AC4/AC5: T097 gave Codex real skill-by-name execution with an 8 KB
     per-skill body cap (lib/harness-fetch.sh:harness_skill_body_cap), and the

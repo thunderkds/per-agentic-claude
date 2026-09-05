@@ -11,8 +11,21 @@
 
 > **Session handoff — 2026-08-31.** T097 merged. Its worktree and the T096 lessons both held: the
 > guide was tracked before the spawn, and the `setsid` launch survived (46 min elapsed, agent
-> completed with 5 commits). v2 is clean and green: 707 hook tests, 40 tests, 41 projection tests,
-> `validate.sh` and `smoke-install.sh` RC=0.
+> completed with 5 commits). `validate.sh` and `smoke-install.sh` returned RC=0 at merge time; the
+> full suite's pass/fail counts were not re-measured after that merge, and T102 (registered
+> 2026-09-04) found the board's later "clean and green" framing of this note was stale.
+>
+> **A test count in this note is a measurement with a date on it, never a standing claim.** That is
+> what broke here: counts written once were read as current for three sessions. Every figure below
+> carries the date it was taken, and anything undated must be re-measured with
+> `python3 -m pytest tests/ .claude/hooks/tests/ -q` before it is relied on.
+>
+> - **2026-09-04** — `6 failed, 837 passed` on a clean `v2`. Two independent causes, both
+>   pre-existing and neither a regression: the `memory/MEMORY.md` hot-tier budget (5 tests) and the
+>   README's own 60-line cap (1 test).
+> - **2026-09-05** — hot tier resolved by a user-run `/compact-memory` (46,343 → 43,631 chars,
+>   commit `1018d38`); README cap resolved by T102 raising it to 75. The post-merge count is
+>   recorded in T102's row at Stage 5, measured after the merge rather than predicted here.
 >
 > **The kit now installs into Codex.** `setup.sh --harness codex` projects canon into `.codex/skills/`;
 > a real Codex 0.149.1 session executes kit skills by name. Four skills exceed Codex's 8 KB body cap

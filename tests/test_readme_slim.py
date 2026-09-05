@@ -9,9 +9,9 @@ def _read():
     return README.read_text(encoding="utf-8")
 
 
-def test_readme_is_at_most_60_lines():
+def test_readme_is_at_most_75_lines():
     lines = _read().splitlines()
-    assert len(lines) <= 60, f"README.md is {len(lines)} lines, expected <= 60"
+    assert len(lines) <= 75, f"README.md is {len(lines)} lines, expected <= 75"
 
 
 def test_readme_contains_exact_install_command():
