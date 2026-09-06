@@ -52,9 +52,12 @@ warning or error.
   the directive now suppresses a check that no longer fires and the live one lands unsuppressed.
   Nothing in this repo changed — the apt shellcheck in `ubuntu-latest` rolled forward under it.
 - SC2181 and SC2012 are long-standing checks against `tests/test_harness_projection.sh`, last
-  touched 2026-08-31 (T097). That half has plausibly been red since then. **Unconfirmed**: `gh` is
-  not authenticated in the Supervisor's environment, so CI run history was not read. Do not repeat
-  this as measured fact.
+  touched 2026-08-31 (T097). **Corrected 2026-09-06, post-push:** the repo is public, so the
+  unauthenticated Actions REST API served the run history after all — no `gh` login was ever needed.
+  CI failed at this step exactly **twice**, both on 2026-09-05 (`b6ef559`, `4617ac3`), and there were
+  **no CI runs on any branch** between 08-25 and 09-05 because all work sat on `v2`, which never
+  triggered the workflow. The defects date to T097's code; the red gate dates to the v2.0.0
+  promotion. Code age and gate-red age are different facts — only the first was inferable from mtimes.
 
 **Out of scope**:
 - Pinning the shellcheck version in `.github/workflows/ci.yml`. Explicitly decided by the user on

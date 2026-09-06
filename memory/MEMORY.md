@@ -245,6 +245,8 @@
 - [shellcheck IS available here — fetch the static binary](learnings.md) — supersedes the 2026-07-17 "no shellcheck in this env" note; `sh -n` would have caught none of T105's four findings.
 - [T105 merged: the shellcheck gate on main is green again](decisions.md) — 4 findings fixed, `ci.yml` unpinned by user decision, merged with 2 open follow-ups.
 
+- [Public repo = CI history without `gh` auth](learnings.md#correction-to-the-t105-record-the-red-ci-dates-to-the-v200-promotion-not-to-t097-2026-09-06) — T105 correction: `curl api.github.com/.../actions/runs` needs no login; the "red since T097" inference was wrong (CI was red twice, both 2026-09-05, because `v2` never ran the workflow). Code age ≠ gate-red age.
+
 ### Glossary
 - [Report / Report Slot / Scoring Dimension / Report Session](glossary.md) — canonical terms for the html-report skill and Stage 4 reporting system
 - [Thinking Report / Trade-Off Matrix / Thinking Session](glossary.md) — canonical terms for the thinking-report skill and Stage 0.5–2 decision system

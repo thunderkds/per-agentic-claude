@@ -106,3 +106,22 @@ The user chose to merge as-is on 2026-09-06 with both of these open. Neither blo
 Deliberately **not** a follow-up: the duplicated if/else in the SC2181 fix
 (`tests/test_harness_projection.sh:294-305`) is correct as-is. That duplication is the price of
 testing the command directly — collapsing it is what produced the `$?` this task removed.
+
+---
+
+## Post-push CI confirmation (2026-09-06)
+
+Pushed `4617ac3..1d26256` to `github/main`. **Real CI is green**: run 34011068595 at `1d26256` —
+`Shellcheck install scripts` → success, and every other step (validate framework integrity, install
+smoke test, per-harness projection) success. This closes the one link `/verify` could not reach: the
+gate was confirmed locally against CI's exact argument list, and is now confirmed at CI itself.
+
+**Correction to this task's record.** The guide, the Kanban row and the Evidence table all carried —
+labelled unconfirmed — the reading that the SC2181/SC2012 half had been red "since T097, 2026-08-31".
+The repo is public, so `api.github.com/repos/.../actions/runs` serves the history with no auth at all;
+`gh` being unauthenticated never actually blocked this, and labelling the inference was the fallback
+when it should have been the second move. CI failed at the shellcheck step exactly **twice**, both on
+2026-09-05 (`b6ef559`, `4617ac3`), with no CI runs on any branch between 08-25 and 09-05 because all
+work was on `v2`, which never triggered the workflow. **The defects date to T097's code; the red gate
+dates to the v2.0.0 promotion.** Corrected in `tasks/TASK_GUIDE_T105.md`, the Kanban row and
+`memory/learnings.md`.

@@ -2089,11 +2089,28 @@ measurements expire". **A restatement of another file's contents is a measuremen
 expire.** Derive the list, or assert the count; do not restate it. Merged as-is by user decision with
 this open as a recorded follow-up in `tasks/TASK_REVIEW_T105.md`.
 
-### Verifying a CI failure without CI access (T105, 2026-09-06)
+### Verifying a CI failure without CI access — and why "without" was premature (T105, 2026-09-06)
 
-`gh` is unauthenticated in this environment, so CI run history could not be read. Two consequences worth
-repeating: the fix was verified by running CI's argument list *verbatim* with CI's tool version locally,
-which is sound; but the claim "this has been red since T097 on 2026-08-31" was inference from file
-mtimes, and was labelled **unconfirmed** in the guide, the Kanban row and the review file rather than
-asserted. Keep that split explicit — a reproduced failure is measured, a failure *date* without run
-history is not.
+`gh` is unauthenticated in this environment, so CI run history was initially treated as unreadable and the fix was verified
+by running CI's argument list verbatim with CI's tool version locally. That local reproduction was sound and is still the
+right technique. But "no CI access" was itself an unchecked assumption — see the correction below.
+
+### Correction to the T105 record: the red CI dates to the v2.0.0 promotion, not to T097 (2026-09-06)
+
+T105's guide, Kanban row and review file all carried — explicitly labelled **unconfirmed** — the reading that the
+SC2181/SC2012 half had been red "since T097, 2026-08-31", inferred from file mtimes because `gh` was unauthenticated.
+**That inference was wrong, and the correction was cheap: the repo is public, so `api.github.com` serves Actions run
+history with no auth at all** — no `gh login` needed, just `curl`.
+
+What the run history actually shows: CI failed at the `Shellcheck install scripts` step exactly **twice**, both on
+2026-09-05 (`b6ef559`, `4617ac3`). Between 2026-08-25 and 2026-09-05 there were **no CI runs on any branch** — all work
+was on `v2`, which never triggered the workflow. So the SC2181/SC2012 *defects* do date to T097's code on 2026-08-31,
+but CI never observed them until the v2→main promotion at the v2.0.0 release. Code age and gate-red age are different
+facts, and only the first was inferable from mtimes.
+
+**How to apply:** before recording a CI-history claim as unconfirmed, try the unauthenticated REST API on a public repo
+(`/actions/runs?branch=…`, then `/actions/runs/<id>/jobs` for step-level conclusions). Labelling an inference is the
+right fallback, not the first move. And when a gate breaks right after a long-lived branch is promoted, suspect that the
+branch was never running the gate — not that the gate silently regressed on the trunk.
+
+Confirmed the same way: T105's fix is green on real CI — run 34011068595 at `1d26256`, `Shellcheck install scripts` → success, all steps success.
