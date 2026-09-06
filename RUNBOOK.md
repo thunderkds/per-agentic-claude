@@ -105,6 +105,9 @@ v2.0.0 moves canon from `.claude/agents/` and `.claude/skills/` to plain root an
 
 ## Deploying the landing site
 
+**Deployed URL**: [`https://personal-agentic-claude.vercel.app/`](https://personal-agentic-claude.vercel.app/)
+(verified live 2026-09-06 — HTTP 200, served HTML byte-identical to this repo's `site/index.html`).
+
 Separate from the harness's own release above: this deploys `site/index.html` (the public marketing
 page) to Vercel. Config lives in `vercel.json` at the repo root; it declares `site` as the
 **output directory only** and sets no build/install/framework command — this is a static-file

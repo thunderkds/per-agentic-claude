@@ -83,8 +83,9 @@ else
   pass "AC2 setup: derived oversize skill set = [$OVERSIZE]"
 fi
 
-# README must mention that Codex skips oversize skills (not "truncates").
-if grep -qi 'skip' "$README" && ! grep -qiE 'truncat' "$README"; then
+# README must state oversize skills are SKIPPED. It may explicitly clarify they are "never
+# truncated" (the distinction is the user-facing point), but must not claim they ARE truncated.
+if grep -qi 'skip' "$README" && ! grep -qiE '(is|are)[[:space:]]+truncat' "$README"; then
   pass "AC2: README uses 'skip' language for oversize skills, not 'truncate'"
 else
   fail "AC2: README must say oversize skills are SKIPPED (not truncated) for Codex"

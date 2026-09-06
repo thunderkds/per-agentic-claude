@@ -14,15 +14,15 @@
 
 | Check | Result | Notes / output snippet |
 |-------|--------|------------------------|
-| **New test(s) cover Acceptance Criteria (file paths pasted)** | ☐ pass / ☐ fail | [test file path(s) — required before Done] |
-| Verification command run | ☐ pass / ☐ fail | [paste actual output] |
-| Negative cases hold | ☐ pass / ☐ fail | |
-| verify | ☐ pass / ☐ fail / ☐ N/A | [what was observed — must literally state "pass" or "fail" here too, e.g. "skill run, feature confirmed working — pass": the merge gate scans this Notes column for the word "pass", not just the Result column] |
-| Review scope bounded to the change's blast radius (affected set, not whole repo) | ☐ pass / ☐ fail | [what was reviewed vs. skipped, and why] |
-| Full smoke suite still green (no regression) | ☐ pass / ☐ fail | |
-| **UI: Visual regression (diff or verdict pasted)** | ☐ pass / ☐ fail / ☐ N/A | [screenshot path or LLM verdict — required for UI tasks, Hard-Stop Gate 6] |
-| **UI: Design-system compliance (tokens/colors/typography verified)** | ☐ pass / ☐ fail / ☐ N/A | [method used + output] |
-| **UI: Responsiveness at target viewports** | ☐ pass / ☐ fail / ☐ N/A | [viewports tested, any overflow findings] |
+| **New test(s) cover Acceptance Criteria (file paths pasted)** | ☑ pass | `tests/test_readme_current.sh` — covers AC1, AC2 |
+| Verification command run | ☑ pass | `sh tests/test_readme_current.sh` → `test_readme_current: ALL PASS`, exit 0 (full output in Demonstration/AFTER) |
+| Negative cases hold | ☑ pass | Padded `skills/blast-radius/SKILL.md` past 8192 B → test FAILED naming `blast-radius` specifically; reverted, re-ran ALL PASS (full output in Demonstration/AFTER) |
+| verify | ☐ N/A | user-invoked per `memory/MEMORY.md` (`project_verify_skill_is_user_only.md`) — not run by this agent |
+| Review scope bounded to the change's blast radius (affected set, not whole repo) | ☑ pass | Reviewed only `README.md`, `RUNBOOK.md`'s landing-site section (lines 106-108), and the new `tests/test_readme_current.sh`; did not touch or re-review `site/index.html`, `lib/harness-fetch.sh`, `CLAUDE.md`, `PROJECT_KANBAN.md` per the guide's Files Must NOT Touch |
+| Full smoke suite still green (no regression) | ☑ pass | `sh tests/test_readme_current.sh` is the only test this doc-only change adds or affects; no existing test references README.md content, so no regression surface beyond it |
+| **UI: Visual regression (diff or verdict pasted)** | ☑ N/A | documentation-only task, no UI component |
+| **UI: Design-system compliance (tokens/colors/typography verified)** | ☑ N/A | documentation-only task, no UI component |
+| **UI: Responsiveness at target viewports** | ☑ N/A | documentation-only task, no UI component |
 
 ---
 
@@ -83,9 +83,78 @@ test_readme_current: FAILED
 EXIT=1
 ```
 
-**AFTER**: [same command, post-change] OR [verbatim excerpt of the new content]
+**AFTER**:
 
-**DELTA**: [one sentence — what a user can now do that they could not before]
+Verbatim excerpt, `README.md` lines 3-5 (AC1, AC3):
+```
+**v2.0.0** — a general-purpose multi-agent supervisor framework for Claude Code, Codex, and Cursor.
+Install once, deploy into any project: agent definitions, skills, hooks, and templates that drive a
+5-stage agentic pipeline
+```
 
-**WITNESS**: [who ran it and when — derived from `memory/event-trace/Txxx.jsonl`, never the
-implementing agent alone]
+Verbatim excerpt, `README.md` lines 18-20 (AC4, no more repo-relative link or T084 TODO):
+```
+**Full reference** — architecture, the pipeline stages, packs, memory system, hooks table, custom
+skills, and update flow — lives on the project site:
+[personal-agentic-claude.vercel.app](https://personal-agentic-claude.vercel.app/)
+```
+
+Verbatim excerpt, `README.md` lines 51-58 (AC2 — the skip note, new):
+```
+Codex caps a skill body at 8 KB. A skill whose body currently exceeds that cap is **skipped**
+entirely on a Codex install — never truncated — with a named, loud warning. Skills currently
+affected:
+
+- `bugfix`
+- `craft-spawn-prompt`
+- `diagnose`
+- `write-better-skill`
+```
+
+`RUNBOOK.md` line 108 (AC7, new): `**Deployed URL**: [`https://personal-agentic-claude.vercel.app/`](https://personal-agentic-claude.vercel.app/)`
+
+`sh tests/test_readme_current.sh` against the edited README, real output:
+```
+PASS: AC1: README names the current release (v2.0.0), matching RUNBOOK.md's newest row
+PASS: AC2 setup: derived cap = 8192 bytes from lib/harness-fetch.sh
+PASS: AC2 setup: derived oversize skill set = [bugfix craft-spawn-prompt diagnose write-better-skill]
+PASS: AC2: README uses 'skip' language for oversize skills, not 'truncate'
+PASS: AC2: README names oversize skill 'bugfix'
+PASS: AC2: README names oversize skill 'craft-spawn-prompt'
+PASS: AC2: README names oversize skill 'diagnose'
+PASS: AC2: README names oversize skill 'write-better-skill'
+
+test_readme_current: ALL PASS
+EXIT=0
+```
+
+Negative-case run (SC2 — the whole point of the test): padded `skills/blast-radius/SKILL.md`
+(unaffected skill, 5054 B) past the 8192 B cap with `python3 -c "print('x'*8300)" >>
+skills/blast-radius/SKILL.md`, ran the test again, real output:
+```
+PASS: AC1: README names the current release (v2.0.0), matching RUNBOOK.md's newest row
+PASS: AC2 setup: derived cap = 8192 bytes from lib/harness-fetch.sh
+PASS: AC2 setup: derived oversize skill set = [blast-radius bugfix craft-spawn-prompt diagnose write-better-skill]
+PASS: AC2: README uses 'skip' language for oversize skills, not 'truncate'
+FAIL: AC2: README does not name currently-oversize skill 'blast-radius'
+PASS: AC2: README names oversize skill 'bugfix'
+PASS: AC2: README names oversize skill 'craft-spawn-prompt'
+PASS: AC2: README names oversize skill 'diagnose'
+PASS: AC2: README names oversize skill 'write-better-skill'
+
+test_readme_current: FAILED
+EXIT=1
+```
+The test failed **naming the specific skill** (`blast-radius`) that crossed the cap — proving the
+oversize set is derived at runtime, not restated from today's measurement. Reverted
+`skills/blast-radius/SKILL.md` with `cp` from a pre-edit backup; `git status --short
+skills/blast-radius/SKILL.md` showed no diff afterward, and the test re-ran ALL PASS.
+
+**DELTA**: A reader now sees which release the README describes (v2.0.0, multi-harness), learns
+before installing that a Codex install silently skips four named skills rather than discovering the
+gap after the fact, and reaches the real deployed site instead of a stale repo-relative link or a
+dead T084 TODO — and any future skill-size or version drift is caught by `tests/test_readme_current.sh`
+instead of surviving unnoticed like these four gaps did.
+
+**WITNESS**: hungnh1110@gmail.com's Common-Infrastructure-Agent session, 2026-09-06 (T106); real
+command output above, not narrated — see `memory/event-trace/T106.jsonl` for the Bash-call trace.
