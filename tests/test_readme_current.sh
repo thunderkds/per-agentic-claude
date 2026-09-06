@@ -3,15 +3,18 @@
 #
 # Asserts (AC numbers from tasks/TASK_GUIDE_T106.md):
 #   AC1 — README names the current release, matching RUNBOOK.md's newest release row
-#   AC2 — README states that Codex skips oversize skill bodies, and names exactly the
-#         skills currently over the cap in lib/harness-fetch.sh (derived, not hardcoded)
+#   AC2 — README states that Codex skips oversize skill bodies, and names EXACTLY the
+#         skills currently over the cap in lib/harness-fetch.sh (derived, not hardcoded) —
+#         both directions: every currently-oversize skill is named (no omission), and no
+#         named skill is currently under the cap (no stale over-claim)
 #
 # Both the oversize-skill set and the cap are DERIVED at runtime from
 # lib/harness-fetch.sh and the skills/ tree — never hardcoded — because the set is a
 # point-in-time measurement that changes whenever a skill body is edited (this repo has
-# hit that exact bug before: see memory/learnings.md). The negative case below (padding a
-# skill past the cap) is what proves this derivation is load-bearing rather than
-# decorative.
+# hit that exact bug before: see memory/learnings.md). Two negative cases prove this
+# derivation is load-bearing in both directions: (a) padding a skill past the cap must
+# make the test fail naming it as a missing entry, and (b) shrinking a currently-oversize
+# skill under the cap must make the test fail naming it as a stale entry.
 #
 # Usage: sh tests/test_readme_current.sh
 
@@ -99,6 +102,51 @@ for name in $OVERSIZE; do
     fail "AC2: README does not name currently-oversize skill '$name'"
   fi
 done
+
+# ── Reverse direction: parse the skill names the README's Codex-skip list actually
+# contains (the bullet list following "Skills currently affected:"), and fail for any
+# named skill that is no longer over the derived cap — a stale over-claim. ──
+README_LISTED="$(awk '
+  /Skills currently/ { seeking=1; next }
+  seeking && /^-[[:space:]]*`/ {
+    inlist=1
+    line=$0
+    sub(/^-[[:space:]]*`/, "", line)
+    sub(/`.*/, "", line)
+    print line
+    next
+  }
+  inlist && /^[[:space:]]*$/ { inlist=0; seeking=0 }
+' "$README")"
+
+if [ -z "$README_LISTED" ]; then
+  fail "AC2: could not parse any skill names from README's Codex-skip bullet list"
+fi
+
+for name in $README_LISTED; do
+  still_oversize=0
+  for over in $OVERSIZE; do
+    [ "$over" = "$name" ] && still_oversize=1
+  done
+  if [ "$still_oversize" -eq 1 ]; then
+    pass "AC2 (reverse): README-listed skill '$name' is still over the derived cap"
+  else
+    fail "AC2 (reverse): README lists '$name' as skipped, but it is no longer over the derived cap ($CAP bytes) — stale claim"
+  fi
+done
+
+# ── P2: the README's stated cap (prose "N KB") must agree with the derived cap. ──
+STATED_KB="$(grep -oE '[0-9]+[[:space:]]*KB' "$README" | head -n1 | grep -oE '[0-9]+')"
+if [ -z "$STATED_KB" ]; then
+  fail "AC2: README does not state the Codex skill-body cap in KB"
+else
+  DERIVED_KB=$((CAP / 1024))
+  if [ "$STATED_KB" -eq "$DERIVED_KB" ]; then
+    pass "AC2: README's stated cap (${STATED_KB} KB) matches the derived cap (${DERIVED_KB} KB, ${CAP} bytes)"
+  else
+    fail "AC2: README states the cap as ${STATED_KB} KB but lib/harness-fetch.sh derives ${DERIVED_KB} KB (${CAP} bytes)"
+  fi
+fi
 
 if [ "$FAIL" -ne 0 ]; then
   printf '\ntest_readme_current: FAILED\n' >&2
