@@ -292,14 +292,17 @@ fi
 for _empty_form in '--harness ""' '--harness='; do
   T6C=$(new_target "target-empty-$(printf '%s' "$_empty_form" | tr -cd 'a-z=')")
   if [ "$_empty_form" = '--harness=' ]; then
-    run_setup "$T6C" --harness=
+    if run_setup "$T6C" --harness=; then
+      fail "AC6: $_empty_form exited 0 (silently empty install)"
+    else
+      pass "AC6: $_empty_form exits non-zero"
+    fi
   else
-    run_setup "$T6C" --harness ""
-  fi
-  if [ "$?" -eq 0 ]; then
-    fail "AC6: $_empty_form exited 0 (silently empty install)"
-  else
-    pass "AC6: $_empty_form exits non-zero"
+    if run_setup "$T6C" --harness ""; then
+      fail "AC6: $_empty_form exited 0 (silently empty install)"
+    else
+      pass "AC6: $_empty_form exits non-zero"
+    fi
   fi
   if [ ! -L "$T6C/.claude/skills" ] && [ ! -e "$T6C/.codex" ] && [ ! -e "$T6C/CLAUDE.md" ]; then
     pass "AC6: $_empty_form wrote nothing — no harness-less install"
@@ -382,8 +385,8 @@ if run_update "$T3"; then
   # legitimately still holds the pre-rename small-two. That pre-existing,
   # documented behaviour is out of T097's scope; what T097 owns is that the
   # PROJECTION is replaced wholesale and can never hold two live sets.
-  _upstream=$( cd "$FIXTURE/skills" && ls -1 | LC_ALL=C sort | grep -v '^oversize-skill$' )
-  _proj=$( cd "$T3/.codex/skills" && ls -1 | LC_ALL=C sort )
+  _upstream=$( cd "$FIXTURE/skills" && find . -mindepth 1 -maxdepth 1 -printf '%f\n' | LC_ALL=C sort | grep -v '^oversize-skill$' )
+  _proj=$( cd "$T3/.codex/skills" && find . -mindepth 1 -maxdepth 1 -printf '%f\n' | LC_ALL=C sort )
   if [ "$_upstream" = "$_proj" ]; then
     pass "AC9: the projection equals fresh upstream's under-cap set — one live set"
   else
