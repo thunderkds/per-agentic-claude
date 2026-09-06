@@ -32,7 +32,7 @@ if ! git -C "$ROOT" rev-parse --git-dir >/dev/null 2>&1; then
 fi
 
 TARGET="$(mktemp -d)"
-# shellcheck disable=SC2317  # cleanup is invoked indirectly via the EXIT trap
+# shellcheck disable=SC2317,SC2329  # cleanup is invoked indirectly via the EXIT trap
 cleanup() { rm -rf "$TARGET"; }
 trap cleanup EXIT
 
