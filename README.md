@@ -1,7 +1,8 @@
 # Supervisor Agent Deployment System
 
-A general-purpose multi-agent supervisor framework for Claude Code. Install once, deploy into any
-project: agent definitions, skills, hooks, and templates that drive a 5-stage agentic pipeline
+**v2.0.0** — a general-purpose multi-agent supervisor framework for Claude Code, Codex, and Cursor.
+Install once, deploy into any project: agent definitions, skills, hooks, and templates that drive a
+5-stage agentic pipeline
 (clarify → brainstorm → plan → parallel execution in worktrees → review → verify/ship), enforced by
 pipeline hooks rather than prompt reminders — e.g. `pre_agent_step_limit.py` blocks runaway tool-call
 loops (default 90 calls), and `post_agent_move_to_review.py` is a deliberately inert reminder-only
@@ -15,9 +16,8 @@ pasted content) is quarantined per `docs/claude-md/untrusted-content-boundary.md
 `.cursor/rules/agent-base.mdc`) carrying the kit's non-negotiables — see `docs/MULTI_AGENT.md`.
 
 **Full reference** — architecture, the pipeline stages, packs, memory system, hooks table, custom
-skills, and update flow — lives on the project site: [`site/index.html`](site/index.html)
-*(repo-relative for now; the operator fills in the deployed `.vercel.app` URL here once T084's
-deploy is run).*
+skills, and update flow — lives on the project site:
+[personal-agentic-claude.vercel.app](https://personal-agentic-claude.vercel.app/)
 
 ---
 
@@ -48,13 +48,23 @@ sh -c "$(curl -fsSL https://raw.githubusercontent.com/thunderkds/personal-agenti
 (The `sh -c "$(curl ...)" --` form is required to pass flags: a plain `curl ... | sh --harness codex`
 pipe has `sh` reject the flag as its own before it ever reads the script.)
 
+Codex caps a skill body at 8 KB. A skill whose body currently exceeds that cap is **skipped**
+entirely on a Codex install — never truncated — with a named, loud warning. Skills currently
+affected:
+
+- `bugfix`
+- `craft-spawn-prompt`
+- `diagnose`
+- `write-better-skill`
+
 The selection is not stored as separate state. Later `update.sh` runs re-derive it: a harness is
 updated when you name it with `--harness` on that run, **or** when its directory is already present
 in the project. So a Codex-only install stays Codex-only across updates, and a Claude install keeps
 its `.claude/{skills,agents}` links repaired, without either project having to remember a flag.
 
 Installing from a fork, installing packs, or updating an existing install (`update.sh`)? See the
-[site](site/index.html) for the full Quick Start, Options table, and Update flow.
+[site](https://personal-agentic-claude.vercel.app/) for the full Quick Start, Options table, and
+Update flow.
 
 ---
 
@@ -70,4 +80,4 @@ Installing from a fork, installing packs, or updating an existing install (`upda
 
 Repository layout, agent guides, packs (`mobile`/`data`/`devops`/`ai-agent`/`api`), the custom
 skills catalog, the pipeline enforcement hooks table, and the two-tier memory system are all
-documented on the [site](site/index.html).
+documented on the [site](https://personal-agentic-claude.vercel.app/).
