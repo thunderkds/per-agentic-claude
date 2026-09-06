@@ -9,7 +9,7 @@
 
 ## Project Identity
 
-- **Name**: Supervisor Agent Deployment System
+- **Name**: Easy Kit
 - **Repo**: per-agentic-claude (local)
 - **Primary tech**: POSIX shell (`bash` / `sh`)
 - **Type**: CLI deployment scripts

@@ -1,5 +1,5 @@
 #!/bin/sh
-# update.sh — Supervisor Agent Deployment System updater (direct-to-repo, ADR-0001)
+# update.sh — Easy Kit updater (direct-to-repo, ADR-0001)
 # Usage: bash update.sh [--harness <name>]...
 #
 # Update model (ADR-0001): the old central-clone `git pull` is gone. update.sh

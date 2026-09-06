@@ -1,5 +1,5 @@
 #!/bin/sh
-# setup.sh — Supervisor Agent Deployment System installer (direct-to-repo, ADR-0001)
+# setup.sh — Easy Kit installer (direct-to-repo, ADR-0001)
 # Usage: bash setup.sh [--copy] [--pack=<name>] [--harness <name>]...
 #
 # Fresh-install model (ADR-0001): fetch the harness into a temp clone via
