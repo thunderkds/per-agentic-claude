@@ -247,6 +247,11 @@
 
 - [Public repo = CI history without `gh` auth](learnings.md#correction-to-the-t105-record-the-red-ci-dates-to-the-v200-promotion-not-to-t097-2026-09-06) — T105 correction: `curl api.github.com/.../actions/runs` needs no login; the "red since T097" inference was wrong (CI was red twice, both 2026-09-05, because `v2` never ran the workflow). Code age ≠ gate-red age.
 
+- [The README described a product a Codex user would not receive](learnings.md#the-readme-described-a-product-a-codex-user-would-not-receive-t106-2026-09-06) — docs that invite a config must say what it silently omits; skipped ≠ truncated.
+- [An anti-drift test that guards one direction is half a test](learnings.md#an-anti-drift-test-that-guards-one-direction-is-half-a-test-t106-2026-09-06) — write the negative case both ways; demonstrated at T106 Stage 4.
+- [A deploy nobody wrote down is indistinguishable from one that never happened](learnings.md#a-relative-link-to-an-html-file-is-inert-on-github) — the site URL blocker stood 16 days because the URL was recorded nowhere; now in RUNBOOK.md.
+- [T106 merged: the README names its release](decisions.md) — v2.0.0 named, Codex skip note, multi-harness framing, live site links; T107 open for the "Easy Kit" rename.
+
 ### Glossary
 - [Report / Report Slot / Scoring Dimension / Report Session](glossary.md) — canonical terms for the html-report skill and Stage 4 reporting system
 - [Thinking Report / Trade-Off Matrix / Thinking Session](glossary.md) — canonical terms for the thinking-report skill and Stage 0.5–2 decision system

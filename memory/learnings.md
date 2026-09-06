@@ -1408,6 +1408,14 @@ rest, and that promise is unfulfillable from GitHub until a real hostname exists
 Generalises: whenever documentation is moved out of a rendered surface into a static file in the same
 repo, check that the *pointer* survives the move, not just the content.
 
+**Resolved 2026-09-06 (T106).** All three links now point at `https://personal-agentic-claude.vercel.app/`,
+verified live before the edit: HTTP 200, and the served HTML byte-identical to this repo's
+`site/index.html`, so the deploy is current rather than merely reachable. The release blocker stood
+open for **16 days** — not because the deploy hadn't happened, but because the URL was recorded
+nowhere in the repo, so no one could tell whether it had. T106 writes it into `RUNBOOK.md`'s
+landing-site section for exactly that reason. **A deploy nobody wrote down is indistinguishable from
+a deploy that never happened** — record the URL at deploy time, not at the next doc pass.
+
 ## Two cut lists written by the same author can still disagree
 
 **Date:** 2026-08-21 · **Tasks:** T083 / T085 / T087
@@ -2114,3 +2122,38 @@ right fallback, not the first move. And when a gate breaks right after a long-li
 branch was never running the gate — not that the gate silently regressed on the trunk.
 
 Confirmed the same way: T105's fix is green on real CI — run 34011068595 at `1d26256`, `Shellcheck install scripts` → success, all steps success.
+
+
+### The README described a product a Codex user would not receive (T106, 2026-09-06)
+
+`git diff v1..HEAD -- README.md` was **19 insertions** across a release `RUNBOOK.md` marks BREAKING.
+T101 had already reconciled the mechanics correctly, so what survived was subtler than staleness: the
+README invited `--harness codex` and never mentioned that `lib/harness-fetch.sh` **skips** any skill
+whose body exceeds Codex's 8 KB cap. Four did. A user followed the README's own instruction and
+silently received four fewer skills than the page describes, with nothing to explain the gap.
+
+**The distinction that matters is skipped vs. truncated.** A truncated skill is present-but-degraded;
+a skipped one is absent. The installer says "SKIPPED, not truncated" for precisely that reason, and
+the README now uses the same word. Documentation that softens an installer's own vocabulary makes the
+failure harder to recognise, not gentler.
+
+**How to apply:** when docs invite a configuration, check what that configuration *silently omits*,
+not just what it does. The test is not "is this sentence true" but "would a reader who follows it be
+surprised by what they get".
+
+### An anti-drift test that guards one direction is half a test (T106, 2026-09-06)
+
+T106's whole point was a test that stops the README's skill list going stale. As first written it
+asserted every currently-oversize skill was named in the README — and nothing more. Stage 4
+demonstrated the hole rather than arguing it: shrinking `write-better-skill` to 5000 bytes left the
+README advertising it as unavailable in Codex while the suite printed `ALL PASS`, exit 0.
+
+So it caught "README forgot a skill" and permitted "README names a skill that is fine" — telling a
+reader something is missing when it is present. **A drift guard must be bidirectional, because a
+derived set can drift by gaining or losing members, and the cap defining it can move too.** The
+merged test now fails on all three: a skill dropping under the cap, a skill rising over it, and the
+cap itself changing in `lib/harness-fetch.sh`.
+
+**How to apply:** for any test asserting "documentation matches derived state", write the negative
+case in *both* directions before believing it. One direction passing is the easy half and reads like
+completeness.
