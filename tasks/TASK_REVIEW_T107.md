@@ -33,17 +33,50 @@
 > **before any implementation commit exists**; if it does not (docs, templates, skill-instruction
 > text), BEFORE is the **verbatim prior content** of what changed — a quoted excerpt, not a command.
 
-**BEFORE**: verbatim prior content of the four changed lines, captured 2026-09-06 before any
+**BEFORE**: verbatim prior content of the changed lines, captured 2026-09-06 before any
 implementation commit:
 
 - `README.md:1` — `# Supervisor Agent Deployment System`
 - `PROJECT_SPEC.md:12` — `- **Name**: Supervisor Agent Deployment System`
 - `setup.sh:2` — `# setup.sh — Supervisor Agent Deployment System installer (direct-to-repo, ADR-0001)`
 - `update.sh:2` — `# update.sh — Supervisor Agent Deployment System updater (direct-to-repo, ADR-0001)`
+- `MANIFEST:1` — `# MANIFEST — Supervisor Agent Deployment System` (added after Supervisor
+  correction — the guide's baseline grep filtered on `--include='*.md,*.html,*.json,*.sh'` and
+  missed this extensionless file; confirmed safe to edit since MANIFEST's own header states
+  "Lines starting with # are comments" and `setup.sh` parses paths, not the banner)
 
 AC5 guard, pre-edit: `grep -rn "personal-agentic-claude" setup.sh update.sh README.md | wc -l` → `9`
 
-**AFTER**: [same four lines post-change, plus the guard count re-run] — filled after implementation
+**AFTER**: verbatim new content of the five changed lines:
+
+- `README.md:1` — `# Easy Kit`
+- `PROJECT_SPEC.md:12` — `- **Name**: Easy Kit`
+- `setup.sh:2` — `# setup.sh — Easy Kit installer (direct-to-repo, ADR-0001)`
+- `update.sh:2` — `# update.sh — Easy Kit updater (direct-to-repo, ADR-0001)`
+- `MANIFEST:1` — `# MANIFEST — Easy Kit`
+
+AC5 guard, post-edit: `grep -rn "personal-agentic-claude" setup.sh update.sh README.md | wc -l` → `9` — unchanged.
+
+Corrected verification command (per Supervisor's amendment — extension filters dropped since they
+hid MANIFEST; `command grep` used because this shell's `grep` is a `ugrep`-wrapping function that
+drops the `./` prefix and makes the exclusion filter silently match nothing):
+
+```
+sh scripts/validate.sh && sh scripts/smoke-install.sh && sh tests/test_readme_current.sh \
+  && ! command grep -rn "Supervisor Agent Deployment System" . \
+       --exclude-dir=.git \
+     | command grep -v '^\./tasks/\|^\./memory/\|^\./RUNBOOK.md\|^\./PROJECT_KANBAN.md'
+```
+
+Real output, 2026-09-06:
+- `scripts/validate.sh` → `validate.sh: PASS`
+- `scripts/smoke-install.sh` → `smoke-install.sh: PASS`
+- `tests/test_readme_current.sh` → `test_readme_current: ALL PASS`
+- Raw grep (pre-exclusion) matched only in `./PROJECT_KANBAN.md` (rows T107, T106 — historical
+  registration text) and `./tasks/TASK_REVIEW_T107.md` / `./tasks/TASK_GUIDE_T107.md` (this task's
+  own guide/review docs) — all protected paths.
+- After the exclusion filter: zero lines remained (`grep` exit 1 = no match found).
+- Overall command exit: `0` (PASS).
 
 **DELTA**: [one sentence — what a user can now do that they could not before]
 
