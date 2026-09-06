@@ -240,6 +240,11 @@
 
 - [A commit message can overclaim what its own evidence file records](learnings.md#a-commit-message-can-overclaim-what-its-own-evidence-file-records-t104-2026-09-05) — 3rd in 3 tasks: code right, summary wrong; read the Evidence table against the commit subjects before accepting done
 
+- [A suppression directive names a check code, and codes aren't version-stable](learnings.md#a-suppression-directive-names-a-check-code-and-codes-are-not-stable-across-linter-versions-t105-2026-09-06) — T105: a *correct* `disable=SC2317` went stale when shellcheck split the case into SC2329; CI red with an empty diff. List every plausible code; suspect the toolchain when `git log` explains nothing.
+- [A test that mirrors another file's list by copying it is a comment, not a mechanism](learnings.md#a-test-that-mirrors-another-files-list-by-copying-it-is-a-comment-and-not-a-mechanism-t105-2026-09-06) — third sighting of the expiring-measurement shape; open follow-up on `tests/test_shellcheck_clean.sh`.
+- [shellcheck IS available here — fetch the static binary](learnings.md) — supersedes the 2026-07-17 "no shellcheck in this env" note; `sh -n` would have caught none of T105's four findings.
+- [T105 merged: the shellcheck gate on main is green again](decisions.md) — 4 findings fixed, `ci.yml` unpinned by user decision, merged with 2 open follow-ups.
+
 ### Glossary
 - [Report / Report Slot / Scoring Dimension / Report Session](glossary.md) — canonical terms for the html-report skill and Stage 4 reporting system
 - [Thinking Report / Trade-Off Matrix / Thinking Session](glossary.md) — canonical terms for the thinking-report skill and Stage 0.5–2 decision system

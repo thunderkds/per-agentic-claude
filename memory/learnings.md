@@ -54,7 +54,7 @@
 - 2026-07-16 — A sub-agent's completion report claiming files were changed is not proof they were **committed** in the worktree — discovered on T027 when the Supervisor's Stage-4 review-fix commit only staged the one file it directly edited (`grill-with-docs/SKILL.md`), and the merge silently succeeded while missing the implementing agent's own uncommitted `templates/DDR_template.md` (new) and `CLAUDE.md` changes, which had never been committed at all. `git merge --no-ff` does not error on a "successful but incomplete" merge — it just merges whatever the branch's HEAD actually points to. Fix: after any Stage-4 fix commit, before merging, always run `git status --short` in the worktree to check for uncommitted implementer changes, and verify `git diff <base> --stat` on the feature branch matches the TASK_GUIDE's predicted file scope (not just "the merge command didn't error") before trusting a merge is complete. If a bad merge already landed on an unpushed local branch, `git log github/main -1` (or equivalent) to confirm nothing was pushed, then `git reset --hard` to before the merge commit and redo it — safe only pre-push. (source: T027, tasks/TASK_GUIDE_T027.md)
 - 2026-07-17 — Second occurrence of the "sub-agent didn't commit" failure shape, this time via the Ghostty spawn pattern (see [[feedback_subagent_spawn_terminal]]): on T028, the spawned sub-agent produced fully correct, test-passing artifacts (`reports/token-audit_2026-07-17.md`, a passing pytest suite, a `memory/MEMORY.md` edit) but the Ghostty window/process ended before it ran `git commit` or wrote the `TASK_ID.done` marker — and the Supervisor's own background wait-loop task was later reported `stopped` with no completion record, so even the marker-based tracking failed silently (no notification arrived; the Supervisor only discovered the gap when asked to push and found the marker file missing). Fix applied this time: before trusting any "push"/"merge" request from the user, check the worktree directly (`git status --short`, run the guide's verification command) rather than assuming a prior notification means the task finished. Open question flagged in `memory/decisions.md` (2026-07-17 entry): the marker-file wait-loop may need a durable fallback (e.g. Supervisor-side periodic `git status` polling of the worktree) rather than relying solely on the sub-agent reaching its own commit step before the window closes. (source: T028, tasks/TASK_GUIDE_T028.md)
 - 2026-07-17 — Shell functions that create a resource needing an EXIT-trap-based cleanup (e.g. a temp dir) must expose the path via a variable, **not** stdout — discovered on T031's `harness_make_temp_dir`. Printing the path and capturing it with `x=$(harness_make_temp_dir)` runs the whole function, including its trap registration, inside a command-substitution subshell; the EXIT trap then fires in that subshell, not the caller's shell, so cleanup either leaks the dir or fires at the wrong time. Fix: the function sets a well-known variable (here `$HARNESS_TEMP_DIR`) as a side effect and returns nothing meaningful on stdout; callers read the variable directly, never `$(...)`-capture. Applies to any future shared-lib function with the same shape (register-cleanup-then-return-a-path). (source: T031, lib/harness-fetch.sh)
-- 2026-07-17 — This dev environment has no `shellcheck` installed. Shell-script tasks (T031 onward) substitute `sh -n <file>` (syntax check) plus running the test suite under both `bash` and `dash` as the lint/portability evidence, and note the substitution explicitly in the Completion Checklist rather than silently skipping the item. If `shellcheck` becomes available, prefer it. (source: T031)
+- 2026-07-17 — This dev environment has no `shellcheck` on `PATH`. Shell-script tasks (T031 onward) substituted `sh -n <file>` plus running the suite under both `bash` and `dash` as the lint evidence. **Superseded 2026-09-06 (T105): the substitution is no longer necessary.** shellcheck ships a self-contained static binary — `curl -sSL https://github.com/koalaman/shellcheck/releases/download/stable/shellcheck-stable.linux.x86_64.tar.xz | tar -xJ` gives a working 0.11.0 in seconds with no package manager and no sudo. Fetch it into the scratchpad and use the real linter; `sh -n` never would have caught any of T105's four findings. Match the version to CI's when reproducing a CI lint failure — the version is part of the bug (see the SC2329 entry below). (source: T031, revised T105)
 - 2026-07-17 — Confirmed empirically (not just reasoned): a `MANIFEST` entry with a leading slash (e.g. `/etc`) does NOT escape the temp/target directory in `harness_copy_manifest`, because the function builds paths via string concatenation (`"$_tmp_dir/$_line"`), so a leading slash just produces a double-slash still anchored under the intended dir, not an absolute-path traversal. Verified by direct `sh` driver-script testing during T031's `verify` pass, not by the author's own test suite. (source: T031 verify pass)
 - 2026-07-17 — Do NOT pass `isolation: "worktree"` on an `Agent()` call when a worktree for that task was already created manually (e.g. by `common-infrastructure`) — the Agent tool's own `isolation: "worktree"` creates a *second*, independent worktree/branch (observed at `.claude/worktrees/agent-<id>`, branch `worktree-agent-<id>`), silently orphaning the manually-created one. Discovered on T032 when the sub-agent's actual work landed in a worktree/branch the Supervisor never provisioned. Fix: when Stage 3 already created a worktree via `common-infrastructure`, omit `isolation` entirely on the `Agent()` call (the spawn prompt already scopes the agent to that worktree path); reserve `isolation: "worktree"` only for ad-hoc spawns with no pre-existing worktree. (source: T032 spawn)
 - 2026-07-17 — A sub-agent may finish implementation but leave the TASK_GUIDE's own Evidence table unfilled (unlike T031's implementer, which filled it) — always check the Evidence table is actually populated before treating a task as review-complete, and if blank, fill it yourself as reviewer using your own independently-reproduced command output, not the agent's prose report. (source: T032 Stage 4 review)
@@ -2052,3 +2052,48 @@ against each other. A Kanban row or commit subject is a claim; the Evidence tabl
 Where they disagree, the summary is wrong — it is the one written from memory rather than from
 observation. Corollary for spawn prompts: an agent that cannot run a gate must be told it may not
 *describe* the gate as passed either, since knowing the rule demonstrably does not prevent it.
+
+
+### A suppression directive names a check code, and codes are not stable across linter versions (T105, 2026-09-06)
+
+`scripts/smoke-install.sh` carried `# shellcheck disable=SC2317  # cleanup is invoked indirectly via
+the EXIT trap` since T036. The *reasoning* was correct and still is. But shellcheck later split the
+trap-invoked-function case out of SC2317 into a new **SC2329**, so the directive went on suppressing
+a check that no longer fires while the live one landed unsuppressed — and CI went red with **no
+commit to the repo at all**. `ubuntu-latest`'s apt shellcheck had simply rolled forward underneath.
+
+**Why it matters:** a suppression is the one comment that is also executable configuration, and it is
+silently coupled to a tool version nobody in the repo declares. `git log` on the file explains
+nothing, because the file did not change. When a lint gate breaks with an empty diff, suspect the
+toolchain before the code.
+
+**How to apply:** when suppressing, list every code that can plausibly cover the case
+(`disable=SC2317,SC2329`) rather than the single one firing today — the directive stays correct across
+versions, and an extra code costs nothing. When a CI lint step fails and `git log` shows no relevant
+change, reproduce with CI's *exact* tool version before reading a line of the source. Pinning the
+version is the other half of the fix and was deliberately **declined** by the user at T105: keeping CI
+on apt means new checks keep surfacing, at the cost of this recurring. That is an accepted trade, not
+an oversight.
+
+### A test that mirrors another file's list, by copying it, is a comment and not a mechanism (T105, 2026-09-06)
+
+`tests/test_shellcheck_clean.sh` exists to mirror CI's shellcheck step locally. It hardcodes the same
+five filenames and carries the comment "Same five files, same order, as `.github/workflows/ci.yml`'s
+shellcheck step." Nothing enforces that. Demonstrated during `/verify` rather than argued: adding a
+deliberately dirty sixth file to `ci.yml`'s list left CI exiting 1 while the test still printed
+`PASS — exit 0, no output`.
+
+This is the third sighting of one shape in this repo — a stale suppression code (above), a stale
+"five files" comment (here), and the earlier "a note that states a count states a measurement, and
+measurements expire". **A restatement of another file's contents is a measurement, and measurements
+expire.** Derive the list, or assert the count; do not restate it. Merged as-is by user decision with
+this open as a recorded follow-up in `tasks/TASK_REVIEW_T105.md`.
+
+### Verifying a CI failure without CI access (T105, 2026-09-06)
+
+`gh` is unauthenticated in this environment, so CI run history could not be read. Two consequences worth
+repeating: the fix was verified by running CI's argument list *verbatim* with CI's tool version locally,
+which is sound; but the claim "this has been red since T097 on 2026-08-31" was inference from file
+mtimes, and was labelled **unconfirmed** in the guide, the Kanban row and the review file rather than
+asserted. Keep that split explicit — a reproduced failure is measured, a failure *date* without run
+history is not.
