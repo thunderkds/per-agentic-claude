@@ -33,3 +33,14 @@
   (e.g. `.codex/skills/`). Copies, never symlinks; regenerated, never hand-edited.
 - **Destination map** — MANIFEST's optional trailing `<harness>=<dest>` column naming where a
   canonical path lands for a given harness. Absent = that harness does not receive it.
+
+
+**Easy Kit** — the product's name, locked by the user 2026-09-06 (T107) when the site and the README
+disagreed. Canonical on every reader-facing surface: `README.md` H1, `PROJECT_SPEC.md` Name field,
+`site/index.html`, and the `setup.sh`/`update.sh`/`MANIFEST` banner comments.
+
+**Not** the same as `personal-agentic-claude`, which is the GitHub repo slug and the install path
+inside the `curl` one-liner and every fetch URL. The slug was deliberately NOT renamed: changing it
+breaks the update path of every existing install. Historical records (`tasks/`, `memory/`,
+`RUNBOOK.md` release rows, `PROJECT_KANBAN.md`) keep the former name, "Supervisor Agent Deployment
+System", because rewriting them to match a later rename destroys the audit trail.

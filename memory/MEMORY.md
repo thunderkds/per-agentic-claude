@@ -252,6 +252,10 @@
 - [A deploy nobody wrote down is indistinguishable from one that never happened](learnings.md#a-relative-link-to-an-html-file-is-inert-on-github) — the site URL blocker stood 16 days because the URL was recorded nowhere; now in RUNBOOK.md.
 - [T106 merged: the README names its release](decisions.md) — v2.0.0 named, Codex skip note, multi-harness framing, live site links; T107 open for the "Easy Kit" rename.
 
+- [A path-exclusion gate can fail open, and this shell makes it likely](learnings.md#a-path-exclusion-gate-can-fail-open-and-this-shell-makes-it-likely-t107-2026-09-06) — `grep` here wraps ugrep and drops the `./` prefix, so `grep -v '^\./…'` subtracts nothing and the gate reports false-clean. Use `command grep` + `--exclude-dir=`.
+- [An extension-filtered grep cannot establish "every occurrence"](learnings.md#an-extension-filtered-grep-cannot-establish-every-occurrence-t107-2026-09-06) — `--include='*.sh'` etc. hid the extensionless MANIFEST from T107's baseline; filter by path exclusion for audits.
+- [T107 merged: the product is Easy Kit on every surface](decisions.md) — 5 one-line edits; install path and audit trail deliberately untouched.
+
 ### Glossary
 - [Report / Report Slot / Scoring Dimension / Report Session](glossary.md) — canonical terms for the html-report skill and Stage 4 reporting system
 - [Thinking Report / Trade-Off Matrix / Thinking Session](glossary.md) — canonical terms for the thinking-report skill and Stage 0.5–2 decision system

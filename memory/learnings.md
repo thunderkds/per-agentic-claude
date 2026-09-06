@@ -2157,3 +2157,39 @@ cap itself changing in `lib/harness-fetch.sh`.
 **How to apply:** for any test asserting "documentation matches derived state", write the negative
 case in *both* directions before believing it. One direction passing is the easy half and reads like
 completeness.
+
+### A path-exclusion gate can fail open, and this shell makes it likely (T107, 2026-09-06)
+
+T107's verification command ended in
+`command grep -rn "<old name>" . | grep -v '^\./tasks/\|^\./memory/…'` — scan everything, subtract
+the protected paths, expect empty. In this environment that gate reported **clean while the tree was
+not clean**.
+
+Cause: `grep` here is a shell function wrapping `ugrep` (defined in the Claude Code shell snapshot),
+and it **omits the `./` prefix** GNU grep emits for a recursive `.` scan. Every `^\./…` exclusion
+therefore matched nothing, subtracted nothing — and because the *inclusion* side also printed
+prefix-less paths, the human-eyeball check looked fine too. Found by the implementing agent, then
+reproduced directly: `type grep` → "shell function"; `command grep -rn … .` prints `./PROJECT_KANBAN.md`,
+the aliased one prints `PROJECT_KANBAN.md`.
+
+**Why it deserves an entry rather than a footnote:** a gate whose filter silently matches nothing does
+not fail — it *passes*, loudly and convincingly. It is strictly worse than having no gate, because it
+manufactures evidence. The Supervisor would have merged on it.
+
+**How to apply:** in any gate that subtracts paths, use `command grep` (bypasses functions and
+aliases), and prefer `--exclude-dir=` / `--exclude=` — flags the tool itself honours — over piping
+into a `grep -v` regex that depends on how paths happen to be printed. Sanity-check any
+"expect empty" gate by first running it with the exclusions removed and confirming it is non-empty:
+a filter that has never been seen to match anything has never been tested.
+
+### An extension-filtered grep cannot establish "every occurrence" (T107, 2026-09-06)
+
+T107's baseline table was built with
+`grep -rn "<old name>" . --include='*.md' --include='*.html' --include='*.json' --include='*.sh'`.
+`MANIFEST` is extensionless, so it never appeared, and the guide shipped with an incomplete list of
+locations to rename — a Supervisor error the implementing agent caught mid-task.
+
+For an exhaustive rename or audit, filter by **path exclusion**, never by extension inclusion. The
+extension list encodes what you already thought of, which is exactly the thing an exhaustiveness claim
+must not depend on. Extensionless files in this repo that carry prose: `MANIFEST`, and anything under
+`.github/` without a suffix.
