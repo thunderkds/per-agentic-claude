@@ -8,7 +8,6 @@
 ## Board
 
 ### Todo
-- [ ] **T107** — **The kit answers to two different names depending on which surface you land on.** Registered 2026-09-06 from the user's decision ("Easy Kit") in answer to a direct either/or. Grepped, not recalled: `site/index.html:6,213` already says **Easy Kit**; `README.md:1`, `PROJECT_SPEC.md:12`, `setup.sh:2` and `update.sh:2` still say "Supervisor Agent Deployment System". A reader clicking the README's site link appears to land on a different product. **Depends on T106** — both edit `README.md` line 1. Explicitly out of scope and NOT to be done without a separate user decision: renaming the GitHub repo or the `personal-agentic-claude` slug, which is the install path — changing it breaks the update path of every existing install. `tasks/`, `memory/` and historical `RUNBOOK.md` rows are protected: rewriting them to match a later rename destroys the audit trail. C1 / Low / P2. Guide: `tasks/TASK_GUIDE_T107.md`.
 
 > **Session handoff — 2026-08-31.** T097 merged. Its worktree and the T096 lessons both held: the
 > guide was tracked before the spawn, and the `setsid` launch survived (46 min elapsed, agent
@@ -44,6 +43,7 @@
 
 
 ### In Progress
+- [ ] **T107** — **The kit answers to two different names depending on which surface you land on.** Registered 2026-09-06 from the user's decision ("Easy Kit") in answer to a direct either/or. Grepped, not recalled: `site/index.html:6,213` already says **Easy Kit**; `README.md:1`, `PROJECT_SPEC.md:12`, `setup.sh:2` and `update.sh:2` still say "Supervisor Agent Deployment System". A reader clicking the README's site link appears to land on a different product. **Depends on T106** — both edit `README.md` line 1. Explicitly out of scope and NOT to be done without a separate user decision: renaming the GitHub repo or the `personal-agentic-claude` slug, which is the install path — changing it breaks the update path of every existing install. `tasks/`, `memory/` and historical `RUNBOOK.md` rows are protected: rewriting them to match a later rename destroys the audit trail. C1 / Low / P2. Guide: `tasks/TASK_GUIDE_T107.md`.
 
 
 
