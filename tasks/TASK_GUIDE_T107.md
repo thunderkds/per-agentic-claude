@@ -34,6 +34,7 @@ User decision, 2026-09-06, in response to the Supervisor asking which name is ca
 | `PROJECT_SPEC.md:12` | Supervisor Agent Deployment System | `- **Name**:` field |
 | `setup.sh:2` | Supervisor Agent Deployment System | header comment |
 | `update.sh:2` | Supervisor Agent Deployment System | header comment |
+| `MANIFEST:1` | Supervisor Agent Deployment System | banner comment — **added 2026-09-06 post-spawn** |
 
 **Out of scope**:
 - `site/index.html` — already canonical.
@@ -69,7 +70,7 @@ User decision, 2026-09-06, in response to the Supervisor asking which name is ca
 | 1 | `README.md`'s H1 is **Easy Kit** | the decision |
 | 2 | `PROJECT_SPEC.md`'s `- **Name**:` field is **Easy Kit** | the decision |
 | 3 | `setup.sh` and `update.sh` header comments say **Easy Kit** | the decision |
-| 4 | No occurrence of "Supervisor Agent Deployment System" remains outside `tasks/`, `memory/`, and historical `RUNBOOK.md` rows | "every surface" |
+| 4 | No occurrence of "Supervisor Agent Deployment System" remains outside `.git/`, `tasks/`, `memory/`, `RUNBOOK.md`, and `PROJECT_KANBAN.md` | "every surface" |
 | 5 | The repo name, remote URL and install one-liner are byte-identical to before | Out of scope — the install path must not break |
 | 6 | `sh scripts/validate.sh`, `sh scripts/smoke-install.sh` and `sh tests/test_readme_current.sh` all still pass | no behavioural change |
 
@@ -127,13 +128,14 @@ find-and-replace would reach `tasks/` and `memory/`, which AC4 explicitly protec
 | `README.md` | H1 → Easy Kit |
 | `PROJECT_SPEC.md` | Name field → Easy Kit |
 | `setup.sh`, `update.sh` | header comment → Easy Kit |
+| `MANIFEST` | banner comment → Easy Kit (line 1 is a `#` comment; setup.sh parses paths, not the banner) |
 
 ## Files Must NOT Touch
 
 | File | Reason |
 |------|--------|
 | `site/index.html` | already canonical |
-| `tasks/**`, `memory/**`, `RUNBOOK.md` release rows | historical record; rewriting it destroys the audit trail |
+| `tasks/**`, `memory/**`, `RUNBOOK.md` release rows, `PROJECT_KANBAN.md` | historical record; rewriting it destroys the audit trail |
 | anything containing `personal-agentic-claude` | that is the install path, not the name |
 
 ---
@@ -156,3 +158,28 @@ find-and-replace would reach `tasks/` and `memory/`, which AC4 explicitly protec
 - [ ] UI/Design Evidence rows ☐ N/A — no UI component (Hard-Stop Gate 6)
 - [ ] `Skill({ skill: "verify" })` run — user-invoked
 - [ ] Supervisor notified: ready for Stage 4 review
+
+
+---
+
+## Guide corrections (2026-09-06, post-spawn — Supervisor errors, recorded not hidden)
+
+Both found by the implementing agent during execution; both are defects in this guide, not in its
+execution. Recorded here because a guide that quietly absorbs its own corrections teaches nothing.
+
+1. **The baseline missed `MANIFEST`.** The Supervisor built the location table from a grep filtered
+   on `--include='*.md' --include='*.html' --include='*.json' --include='*.sh'`. `MANIFEST` is
+   extensionless, so it was never in the result set. **An extension-filtered grep cannot establish
+   "every occurrence"** — it establishes "every occurrence in the extensions I thought of". For an
+   exhaustive-rename baseline, exclude by path and scan everything.
+
+2. **AC4's exclusion list omitted `PROJECT_KANBAN.md`.** The board carries the old name in T106's and
+   T107's own registration rows — historical text, identical in kind to the RUNBOOK release rows the
+   guide already protected. The agent correctly refused to edit the board unilaterally and escalated
+   instead; the guide was wrong, not the board.
+
+3. **The verification command was unrunnable as written in this environment.** `grep` here is a shell
+   function wrapping `ugrep`, which drops the `./` path prefix that every `grep -v '^\./…'` clause in
+   the command depends on — so the exclusions matched nothing and the gate reported **false-clean**.
+   Reproduced by the Supervisor. Any gate in this repo that filters paths this way must use
+   `command grep`. This is a general environment gotcha, not specific to T107.
