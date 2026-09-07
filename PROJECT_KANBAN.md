@@ -1,5 +1,5 @@
 # PROJECT_KANBAN.md
-**Last updated**: 2026-09-06
+**Last updated**: 2026-09-07
 
 > Compact task board. Full context lives in `PROJECT_SPEC.md`. Update this file whenever a task status changes.
 
@@ -41,6 +41,8 @@
 > `post_bash_memory_update.py`. Neither blocks a feature task.
 
 
+
+- [ ] **T108** — **A comma between pack numbers silently costs the user a pack.** Registered 2026-09-07 from a real install into `hungnguyen111/kitchd`, observed rather than inferred: the user typed `1, 5, 3` at the pack prompt and got `[warn] Unknown pack choice '1,'`, `[warn] Unknown pack choice '5,'`, then `Pack 'devops' installed` — two of three packs lost, exit 0, `Setup complete.` printed. `setup.sh:198` word-splits on whitespace only, so `1, 5, 3` tokenizes as `1,` `5,` `3`; the one un-comma'd token survives, which is exactly what makes the failure quiet — a partial success reads as a success. Fix is separator normalization before the existing `case` loop, which is correct and stays untouched; the testability work (a pure parse function plus a define-only guard on `main`) is the larger half, since `prompt_packs` early-returns without a tty and cannot otherwise be driven. Per `memory/learnings.md` the new seam must assert on itself, or every other row passes against a stale definition. C1 / Low / P1. Guide: `tasks/TASK_GUIDE_T108.md`.
 
 ### In Progress
 
