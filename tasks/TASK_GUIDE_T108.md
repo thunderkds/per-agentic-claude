@@ -163,12 +163,12 @@ behavior identical to today: unset means run `main`, exactly as now.
 
 ## Edge Case Checklist
 
-- [ ] Trailing comma (`1,3,`) does not produce an empty-string warning
-- [ ] Leading/trailing whitespace on the line is harmless
-- [ ] A duplicated choice (`1 1`) does not install `mobile` twice, or if it does, `install_pack` is idempotent — verify which, don't assume
-- [ ] Tabs as separators still work (word splitting already covers this — confirm, don't add code)
-- [ ] The define-only guard does not change behavior when unset (the real install path)
-- [ ] `shellcheck -x setup.sh` stays clean — no new suppressions
+- [x] Trailing comma (`1,3,`) does not produce an empty-string warning — test "edge: trailing comma", 0 warnings, output `mobile devops`
+- [x] Leading/trailing whitespace on the line is harmless — test "edge: surrounding whitespace `  1 , 3  `", output `mobile devops`, 0 warnings
+- [x] A duplicated choice (`1 1`) — `resolve_pack_choices` echoes `mobile mobile` (one token per input); `main`'s `for pack in $PACKS` then calls `install_pack mobile` twice. Verified idempotent: 2nd `install_pack` → `install_abs` sees an existing symlink (or existing path under `--copy`) and returns a no-op; only a cosmetic duplicate "Pack 'mobile' installed." log. No double install.
+- [x] Tabs as separators still work — test "edge: tab separators", input `1<TAB>3` → `mobile devops` (shell word-splitting on `$IFS` already covers tabs; no code added for it)
+- [x] The define-only guard does not change behavior when unset — `tests/test_setup.sh` (18/18) drives the real install path unchanged; test row7c confirms sourcing WITHOUT the guard still runs `main`
+- [x] `shellcheck -x setup.sh` stays clean — run via `koalaman/shellcheck:stable` (Docker), exit 0, no findings, no new suppressions
 
 ---
 
@@ -208,11 +208,11 @@ execution.
 
 ## Completion Checklist
 
-- [ ] Implementation done
-- [ ] Self-review: `Skill({ skill: "code-review" })` run
-- [ ] Security review — N/A (Low risk, no new input trust boundary: the parsed value never reaches a shell command, only a `case` whitelist)
-- [ ] `shellcheck -x setup.sh` passes
-- [ ] Tests written AND pass — output pasted into `tasks/TASK_REVIEW_T108.md` (Hard-Stop Gate 5)
+- [x] Implementation done
+- [x] Self-review: `Skill({ skill: "code-review" })` run
+- [x] Security review — N/A (Low risk, no new input trust boundary: the parsed value never reaches a shell command, only a `case` whitelist)
+- [x] `shellcheck -x setup.sh` passes (via `koalaman/shellcheck:stable` Docker — no local binary — exit 0)
+- [x] Tests written AND pass — output pasted into `tasks/TASK_REVIEW_T108.md` (Hard-Stop Gate 5)
 - [ ] `Skill({ skill: "verify" })` run — user-invoked; the Supervisor cannot run this gate
-- [ ] `memory/MEMORY.md` updated (if new patterns learned)
-- [ ] Supervisor notified: task ready for Stage 4 review
+- [x] `memory/MEMORY.md` updated (if new patterns learned) — no new durable pattern; flagged to Supervisor instead (Supervisor-only writes)
+- [x] Supervisor notified: task ready for Stage 4 review

@@ -14,15 +14,50 @@
 
 | Check | Result | Notes / output snippet |
 |-------|--------|------------------------|
-| **New test(s) cover Acceptance Criteria (file paths pasted)** | ☐ pass / ☐ fail | [test file path(s) — required before Done] |
-| Verification command run | ☐ pass / ☐ fail | [paste actual output] |
-| Negative cases hold | ☐ pass / ☐ fail | |
-| verify | ☐ pass / ☐ fail / ☐ N/A | [what was observed — must literally state "pass" or "fail" here too, e.g. "skill run, feature confirmed working — pass": the merge gate scans this Notes column for the word "pass", not just the Result column] |
-| Review scope bounded to the change's blast radius (affected set, not whole repo) | ☐ pass / ☐ fail | [what was reviewed vs. skipped, and why] |
-| Full smoke suite still green (no regression) | ☐ pass / ☐ fail | |
+| **New test(s) cover Acceptance Criteria (file paths pasted)** | ☑ pass | `tests/test_pack_choice_parsing.sh` — 14 assertions covering Success Criteria rows 1–7 plus the guide's Edge Case Checklist. Output below. |
+| Verification command run | ☑ pass | `bash tests/test_pack_choice_parsing.sh && bash tests/test_setup.sh && shellcheck -x setup.sh` — output pasted below. |
+| Negative cases hold | ☑ pass | `1 9 3` → `mobile devops` + exactly one warning naming `9` (row5); `1,,3` / `,` / trailing comma → no phantom empty-string warning (row6, edges). |
+| verify | ☐ pass / ☐ fail / ☐ N/A | [user-invoked — the Supervisor/agent cannot run this gate. Left for the user to run `/verify`.] |
+| Review scope bounded to the change's blast radius (affected set, not whole repo) | ☑ pass | Reviewed: `prompt_packs` + new `resolve_pack_choices` + the bottom `main` guard + `SCRIPT_DIR` override in `setup.sh`, and the new test. Not touched: the `case` arms (correct, unchanged logic — just relocated), `install_pack`, `--pack=` flag parser, `update.sh`, packs. |
+| Full smoke suite still green (no regression) | ☑ pass | `tests/test_setup.sh` — 18/18 pass, unchanged. Confirms the sourcing guard does not disturb the real install path (it redirects stdin from `/dev/null`). |
 | **UI: Visual regression (diff or verdict pasted)** | ☑ N/A | pure-backend task: `setup.sh` shell parsing, no UI component. UI/Design AC section deleted from the guide per Hard-Stop Gate 6. |
 | **UI: Design-system compliance (tokens/colors/typography verified)** | ☑ N/A | pure-backend task: `setup.sh` shell parsing, no UI component. UI/Design AC section deleted from the guide per Hard-Stop Gate 6. |
 | **UI: Responsiveness at target viewports** | ☑ N/A | pure-backend task: `setup.sh` shell parsing, no UI component. UI/Design AC section deleted from the guide per Hard-Stop Gate 6. |
+
+---
+
+## Verification Command — pasted output
+
+`shellcheck` is not on the local box; it was run via `koalaman/shellcheck:stable` in Docker
+(same binary CI uses). Exit 0, no findings.
+
+```
+$ bash tests/test_pack_choice_parsing.sh
+PASS: row1: '1, 5, 3' -> mobile api devops, no warning
+PASS: row2: '1,5,3' -> mobile api devops, no warning
+PASS: row3: '1 5 3' -> mobile api devops, no warning (no regression)
+PASS: row4: '' (empty) -> nothing, no warning
+PASS: row5: '1 9 3' -> mobile devops, exactly one warning naming 9
+PASS: row6: '1,,3' -> mobile devops, no warning (separator is never a choice)
+PASS: edge: trailing comma '1,3,' -> mobile devops, no empty-string warning
+PASS: edge: surrounding whitespace '  1 , 3  ' is harmless
+PASS: edge: tab separators still work
+PASS: edge: ',' alone -> nothing, no warning
+PASS: edge: duplicate choice '1 1' -> one token per input (install_pack is idempotent)
+PASS: regression: empty pack selection does not abort under 'set -e'
+PASS: row7a: resolve_pack_choices is defined after a define-only source
+PASS: row7b: define-only source did NOT run main (no install artifacts in cwd)
+PASS: row7c: without the guard, sourcing runs main (guard is the off switch)
+
+----- summary: 15 passed, 0 failed -----
+
+$ bash tests/test_setup.sh
+... (18 PASS, 0 FAIL)
+----- summary: 18 passed, 0 failed -----
+
+$ docker run --rm -v "$PWD:/mnt" -w /mnt koalaman/shellcheck:stable -x setup.sh tests/test_pack_choice_parsing.sh
+(no output — exit 0)
+```
 
 ---
 
@@ -33,12 +68,35 @@
 > **before any implementation commit exists**; if it does not (docs, templates, skill-instruction
 > text), BEFORE is the **verbatim prior content** of what changed — a quoted excerpt, not a command.
 
-**BEFORE**: [pasted timestamped command output showing the thing absent/failing, captured before the
-first implementation commit] OR [verbatim excerpt of the prior content, for non-executable changes]
+**BEFORE** (captured 2026-09-07T07:34:27Z, at commit `6f409d4`, before any implementation commit —
+replaying `setup.sh:198-206`'s parse loop verbatim on the user's real input `1, 5, 3`):
 
-**AFTER**: [same command, post-change] OR [verbatim excerpt of the new content]
+```
+$ date -u +%Y-%m-%dT%H:%M:%SZ
+2026-09-07T07:34:27Z
+$ # replay of setup.sh:198-206 `for choice in $pack_choices` on pack_choices="1, 5, 3"
+[warn]  Unknown pack choice '1,' — skipping.
+[warn]  Unknown pack choice '5,' — skipping.
+RESULT PACKS: devops
+```
 
-**DELTA**: [one sentence — what a user can now do that they could not before]
+Only `devops` selected; `mobile` and `api` silently dropped; two spurious warnings.
 
-**WITNESS**: [who ran it and when — derived from `memory/event-trace/Txxx.jsonl`, never the
+**AFTER** (captured 2026-09-07T07:40:36Z, post-change — `resolve_pack_choices` from setup.sh on the
+same input `1, 5, 3`):
+
+```
+$ date -u +%Y-%m-%dT%H:%M:%SZ
+2026-09-07T07:40:36Z
+$ RAW="1, 5, 3" SETUP_SH_DEFINE_ONLY=1 sh -c 'set --; . ./setup.sh; \
+    printf "RESULT PACKS: %s\n" "$(resolve_pack_choices "$RAW")"'
+RESULT PACKS: mobile api devops
+```
+
+All three packs selected; no warnings on stderr.
+
+**DELTA**: A user entering `1, 5, 3` (or `1,5,3`) at the pack prompt now gets exactly `mobile api
+devops` with no warning, matching `1 5 3`.
+
+**WITNESS**: [who ran it and when — derived from `memory/event-trace/T108.jsonl`, never the
 implementing agent alone]
