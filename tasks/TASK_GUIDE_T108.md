@@ -81,7 +81,7 @@ makes this so quiet — a partial success looks like a success.
 | 4 | An empty line selects no packs and emits no warning | pressing Enter to skip is documented behavior |
 | 5 | `1 9 3` selects `mobile devops` AND warns once naming `9` | invalid input must still be reported |
 | 6 | `,` alone (or `1,,3`) produces no empty-string warning | separators must never become a phantom choice |
-| 7 | Selection order follows the numeric order the packs are defined in, not input order | keeps output stable and diffable |
+| 7 | ~~Selection order follows the numeric order the packs are defined in, not input order~~ **WITHDRAWN by the Supervisor 2026-09-07 — this criterion was wrong and contradicted AC1–3.** AC1 requires `1, 5, 3` to yield `mobile api devops`, which is *input* order; numeric order would be `mobile devops api`. The two cannot both hold. Input order is also what the pre-fix code did, so demanding numeric order would have been an unrequested behavior change against Surgical Changes. The implementation correctly preserves input order and AC1–3 stand. | — |
 
 ---
 
