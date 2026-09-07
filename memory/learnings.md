@@ -2193,3 +2193,63 @@ For an exhaustive rename or audit, filter by **path exclusion**, never by extens
 extension list encodes what you already thought of, which is exactly the thing an exhaustiveness claim
 must not depend on. Extensionless files in this repo that carry prose: `MANIFEST`, and anything under
 `.github/` without a suffix.
+
+## An interactive CLI's real surface needs a pty — `[ -t 0 ]` gates make it unreachable otherwise (2026-09-07)
+
+T108's defect lived in `setup.sh`'s `prompt_packs`, which early-returns unless stdin is a tty. That
+single guard makes the function unreachable from an ordinary piped test **and** from an ordinary
+`/verify` run: pipe input in and the prompt never renders, so "I ran the installer" proves nothing
+about the parse path. Two separate mechanisms were needed, and they solve different problems:
+
+- **For the test suite**: extract the parsing into a pure function and guard the bottom `main` call
+  (`[ -n "${SETUP_SH_DEFINE_ONLY:-}" ] || main`) so the file can be sourced for its definitions.
+- **For `/verify`**: drive the real binary under a pty — `printf '2\n1, 5, 3\n' | script -qec "sh
+  setup.sh" /dev/null`. Under `script`, `[ -t 0 ]` is true and the actual prompt renders and reads.
+
+The second is the one that produced evidence a reviewer can trust, because it exercised the prompt,
+the parse, `install_pack`, and the closing summary as one flow. The first only ever tests the
+function in isolation.
+
+**Apply to**: any `/verify` of a change behind an interactivity gate (`[ -t 0 ]`, `isatty`,
+`process.stdin.isTTY`). Reach for `script -qec` before concluding the surface is undrivable.
+
+## A subshell `cd` does not wrap a pipeline written outside it — assert where the work landed (2026-09-07)
+
+During T108's `/verify` a probe helper was written as:
+
+```sh
+( cd "$d" && git init -q . && git commit -q -m i )      # subshell ends here
+printf '2\n%s\n' "$input" | script -qec "sh setup.sh" /dev/null
+```
+
+The parenthesized subshell restored the old cwd on exit, so all six probe installs ran against the
+**main checkout** instead of their scratch directories — overwriting `CLAUDE.md` with the legacy
+variant and writing `.claude/harness-lock.json`. `git checkout -- CLAUDE.md` plus removing the
+untracked lock file restored it; nothing was lost, because the tree had been clean at session start
+and only two paths appeared in `git status`.
+
+The failure is silent by construction: an installer that installs *somewhere* prints
+`Setup complete.` and exits 0 either way. Nothing in the output says "wrong directory".
+
+**Apply to**: any test or verification that runs a tool with side effects in a scratch directory.
+Put the whole invocation inside the subshell, and then **assert the destination** rather than
+trusting the `cd` — T108's rerun added a per-probe `cwd-guard` that greps the tool's own output for
+`copied into <expected dir>$` and prints OK/LEAKED. A clean `git status` on the real repo after the
+run is the cheap second check.
+
+## An agent satisfies the AC it can satisfy and stays quiet about a contradictory one (2026-09-07)
+
+T108's guide shipped with a self-contradictory Acceptance Criteria table: AC1 required `1, 5, 3` to
+yield `mobile api devops` (**input** order) while AC7 required "numeric order the packs are defined
+in, not input order" (`mobile devops api`). Both cannot hold. AC7 was also wrong on the merits —
+input order is what the pre-fix code did, so numeric ordering would have been an unrequested
+behavior change against Surgical Changes.
+
+The sub-agent implemented AC1–3 correctly and never mentioned AC7. It was not asked to audit the
+guide for internal consistency, and it didn't. The contradiction surfaced only at Stage 4, when the
+Supervisor read the test's asserted ordering back against the AC table.
+
+**Apply to**: Stage 2 guide authoring — read the AC table against itself before the spawn,
+especially where one row constrains ordering, formatting, or shape that another row also pins down
+by example. And at Stage 4, diff what the tests actually assert against every AC row, not just the
+ones the agent's summary mentions. A guide defect is invisible in a green test run.

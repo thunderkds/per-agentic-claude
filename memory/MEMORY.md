@@ -23,6 +23,9 @@
      (mean 326, max 796). Reported by the size test, never enforced; /compact-memory's job. -->
 
 ### Decisions
+- [Interactive CLIs need a pty to verify](learnings.md) — `[ -t 0 ]`-gated prompts are unreachable from a pipe; drive the real binary with `script -qec` at Stage 5, and add a define-only source guard for the unit path (T108).
+- [A subshell `cd` doesn't wrap a pipeline outside it](learnings.md) — T108's probes installed into the main checkout instead of scratch; an installer prints `Setup complete.` either way. Assert the destination, don't trust the `cd`.
+- [Agents satisfy the AC they can and stay quiet about a contradictory one](learnings.md) — T108's AC1 (input order) and AC7 (numeric order) couldn't both hold; the agent shipped AC1 and never flagged it. Read the AC table against itself before spawning.
 - [Rules with a self-granting escape clause don't bind](learnings.md) — T100 measured it 3-run A/B: `recommendation first` bound, `under ~15 lines unless...` never did; phrase rules as an act, not a self-graded bar. Guidance reshapes structure, not length.
 - [Verify prompt/agent-config changes by running an agent vs a control](learnings.md) — reading the diff would have passed all 6 T100 rules; running one agent in the worktree and one on the base branch showed 1 of 6 bound.
 - [T097 per-harness projection](decisions.md) — `--harness` selects CLIs at install; MANIFEST destination column; projections are gitignored copies; Codex 8 KB cap skips and names, never truncates
