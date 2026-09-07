@@ -25,7 +25,10 @@ set -e
 SUPERVISOR_PATH="${SUPERVISOR_PATH:-$HOME/.supervisor}"
 
 # ── Locate this script so we can source its co-located fetch library ─────────
-SCRIPT_DIR=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
+# SETUP_SH_DIR override: lets a test that sources this file for its function
+# definitions point at the real checkout, so `dirname $0` (which resolves to the
+# test's own dir when sourced) does not misfire the piped-install bootstrap.
+SCRIPT_DIR="${SETUP_SH_DIR:-$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)}"
 
 # ── Logging helpers (TTY-aware color, plain-text fallback) ────────────────────
 GREEN=''; YELLOW=''; RED=''; RESET=''
@@ -174,6 +177,29 @@ fetch_harness() {
   harness_fetch "$SUPERVISOR_REPO" "$HARNESS_TEMP_DIR"
 }
 
+# ── Resolve a raw pack-choice line to pack names ─────────────────────────────
+# Pure: takes the raw line, echoes a space-separated pack-name list, warns once
+# per unrecognized non-empty token, writes no globals and no files. Commas are
+# translated to spaces first — the most common way users write a list (T108:
+# "1, 5, 3" was word-split into "1," "5," "3" and silently lost two of three
+# packs). The shell collapses whitespace runs during word splitting, so ","
+# alone and "1,,3" yield no empty-string token and need no extra guard.
+resolve_pack_choices() {
+  _rpc_norm=$(printf '%s' "$1" | tr ',' ' ')
+  _rpc_out=""
+  for _rpc_choice in $_rpc_norm; do
+    case "$_rpc_choice" in
+      1) _rpc_out="$_rpc_out mobile" ;;
+      2) _rpc_out="$_rpc_out data" ;;
+      3) _rpc_out="$_rpc_out devops" ;;
+      4) _rpc_out="$_rpc_out ai-agent" ;;
+      5) _rpc_out="$_rpc_out api" ;;
+      *) log_warn "Unknown pack choice '$_rpc_choice' — skipping." ;;
+    esac
+  done
+  printf '%s' "${_rpc_out# }"
+}
+
 # ── Prompt pack selection (interactive only, skipped if --pack= flags given) ──
 prompt_packs() {
   # Skip if packs were already specified via --pack= flags
@@ -195,16 +221,13 @@ prompt_packs() {
   printf "          5) api      — REST/gRPC, OpenAPI, auth flows, SDK design\n"
   printf "        Enter numbers separated by spaces, or press Enter to skip: "
   read -r pack_choices
-  for choice in $pack_choices; do
-    case "$choice" in
-      1) PACKS="$PACKS mobile" ;;
-      2) PACKS="$PACKS data" ;;
-      3) PACKS="$PACKS devops" ;;
-      4) PACKS="$PACKS ai-agent" ;;
-      5) PACKS="$PACKS api" ;;
-      *) log_warn "Unknown pack choice '$choice' — skipping." ;;
-    esac
-  done
+  _resolved=$(resolve_pack_choices "$pack_choices")
+  # Explicit `if`, not `[ ... ] && ...`: an empty selection (user pressed Enter
+  # to skip) would make the `&&` list return non-zero as the function's last
+  # command, and `set -e` would abort `main` before any install work.
+  if [ -n "$_resolved" ]; then
+    PACKS="$PACKS $_resolved"
+  fi
 }
 
 # ── Point .claude/{skills,agents} at the plain-root canon ────────────────────
@@ -576,4 +599,7 @@ main() {
   fi
 }
 
-main
+# Run main unless sourced define-only (tests set SETUP_SH_DEFINE_ONLY=1 to load
+# the function definitions without executing the installer). Unset — the real
+# install path — runs main exactly as before.
+[ -n "${SETUP_SH_DEFINE_ONLY:-}" ] || main
